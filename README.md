@@ -499,3 +499,561 @@ public:
 
 ### 加入登录功能以及数据库设计
 
+ 在本次项目中选用了SQLite作为数据库
+
+**优点:**
+
+SQLite作为轻量级的数据库,不需要单独的服务器,数据库以文件形式存储并且能直接集成到程序中
+
+#### 常用命令
+
+> 系统命令
+
+```sqlite
+.schema  查看表的结构
+.quit    退出数据库
+.exit    退出数据库
+.help    查看帮助信息
+.databases 查看数据库
+.tables  显示数据库中所有的表的表名
+```
+
+#### 创建或打开一个数据库
+
+```bash
+sqlite3 db_name.db(或直接db_name)
+//	创建一个名为db_name的数据库,如果已经存在,则是打开这个名为db_name的数据库
+```
+
+==其他语句就是普通sql,跟mysql的区别不大==
+
+#### Database.h
+
+##### 整个class Database的架构
+
+- **private**
+  - `sqlite3* db` 这是一个指向数据库连接对象的指针,用于保证该类在完整的生命周期内能够正常连接
+- **public**
+  - `Database()`一个构造函数,用于打开数据库以及建表
+  - `~Database()`析构函数,用于在程序停止时关闭连接释放资源
+  - `bool registerUser()`用于用户注册
+  - `bool loginUser()`用于用户登录
+
+##### 为什么用户注册和登陆的逻辑要放在该类里面?
+
+==因为这两个逻辑要直接与数据库进行读写交互==
+
+##### `Database()`
+
+```cpp
+//  构造函数，用于打开数据库并创建用户表
+Datebase(const string& db_path) {
+    //  使用sqlite3_open打开数据库
+    //  &db是指向数据库连接对象的指针
+    if(sqlite3_open(db_path.c_str(),&db) != SQLITE_OK) {
+        //  如果数据库打开失败，就抛出数据库运行时的错误
+        throw runtime_error("Failed to open database");
+    }
+
+    //  定义创建用户表的SQL语句 -- 用const char* 类型的对象来存储
+    //  两个字段，用户名和密码，都是TEXT类型
+    const char* sql = "CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT);";
+    char* errmsg;
+
+    //  执行sql语句创建表
+    //  sqlite3_exec用于执行SQL语句
+    //  db是数据库连接对象
+    //  后面的参数是回调函数和它的参数，这里不需要回调所以传0
+    //  errmsg用于传递错误信息
+    if (sqlite3_exec(db,sql,0,0,&errmsg) != SQLITE_OK) {
+        //  如果创建表失败，抛出运行错误并附带错误信息
+        string error_msg = errmsg;	//	获取错误信息
+        sqlite3_free(errmsg);	//	释放错误信息内存
+        throw runtime_error("Failed to create table: " + error_msg);
+    }
+}
+```
+
+首先通过`sqlite3_open(path,&db)`来打开一个SQLite数据库,如果数据库文件不存在,则创建一个新的数据库文件
+
+↓
+
+然后开始创建用户表(user),添加上了`IF NOT EXISTS`字段,这样下次再打开服务器就不会重复创建
+
+其中只有两个字段--`username`和`password`
+
+==细节: 为什么此处sql使用的是const char* 而非string==
+
+因为SQLite使用C写的,很多接口都不支持string,虽然string.c_str()也行但直接用const char*更直观
+
+但如果当前SQL语句是动态的或拼接的,那使用string会更方便
+
+↓
+
+然后开始执行命令通过`sqlite3_exec(db,sql,nullptr,nullptr,&errmsg)`,中间一个是回调函数,一个是函数的第一个参数.
+
+顺带进行错误检测
+
+因为在要抛出错误因此先将错误内存给释放,又因为要释放所以先用`error_msg`来保存错误信息.然后`sqlite3_free(errmsg`来释放用于存放错误信息的内存然后抛出异常
+
+##### `~Database()`
+
+```cpp
+//  析构函数，用于关闭数据库连接
+~Datebase() {
+    //  关闭数据库连接
+    //  sqlite3_close用于关闭和释放数据库连接资源
+    //  db是数据库连接对象
+    sqlite3_close(db);
+}
+```
+
+通过`sqlite3_close()`来关闭连接同时释放资源
+
+##### `bool registerUser()`
+
+```cpp
+//  用户注册函数    -- 需要接收前端传入的username 和 password
+bool registerUser(const string& username, const string& password) {
+    //  构建sql语句用于插入新用户
+    string sql = "INSERT INTO users (username, password) VALUES(?, ?);";
+    sqlite3_stmt* stmt;
+
+    //  准备sql语句，预编译以防止sql注入攻击
+    if (sqlite3_prepare_v2(db,sql.c_str(),-1,&stmt,nullptr) != SQLITE_OK) {
+        //  如果准备语句失败，记录日志并返回false
+        LOG_INFO("Failed to prepare registration SQL for users: %s", username.c_str());
+        return false;
+    }
+
+    //  绑定SQL语句中的参数，防止SQL注入
+    sqlite3_bind_text(stmt,1,username.c_str(),-1,SQLITE_STATIC);
+    sqlite3_bind_text(stmt,2,password.c_str(),-1,SQLITE_STATIC);
+
+    //  执行SQL语句，进行用户注册
+    if (sqlite3_step(stmt) != SQLITE_DONE) {
+        //  如果执行失败，记录日志，清理资源并返回false
+        LOG_INFO("Register failed for user: %s",username.c_str());
+        return false;
+    }
+
+    //  清理资源，关闭SQL语句
+    sqlite3_finalize(stmt);
+    //  记录用户注册成功的日志，实际上不建议这么写日志，但这里是为了看效果
+    LOG_INFO("User registered : %s with password : %s",username.c_str(),password.c_str());
+    return true;
+}
+```
+
+- **构建SQL语句**
+
+​		先定义SQL插入语句,此处用string因为要修改,一般不用修改的就用const char*,在语句中用`?`作为参数占位符
+
+​		再生成一个`sqlite3_stmt`对象,这是一个指向预编译SQL语句的指针
+
+**↓**
+
+- **预编译语句,然后绑定参数**
+
+  通过`sqlite3_prepare_v2(db,sql.c_str(),-1,&stmt,nullptr)`进行预编译
+
+  其中-1该位置的参数代表SQL语句的长度,-1代表自动计算
+
+  而`&stmt`用来接收预编译后的SQL语句
+
+  `nullptr`保留参数,不使用
+
+​		再通过
+
+	sqlite3_bind_text(stmt,1,username.c_str(),-1,SQLITE_STATIC);
+	sqlite3_bind_text(stmt,2,password.c_str(),-1,SQLITE_STATIC);
+
+​		这两个函数来绑定文本参数
+
+​		第二个参数是参数索引,表示索引从1开始..
+
+​		第四个参数表示字符串长度,-1表示自动计算
+
+​		第五个参数是一个析构函数指针,这里使用`SQLITE_STATIC`表示不需要特殊处理
+
+**↓**
+
+- **执行SQL语句**
+
+  此处使用`sqlite3_step()`,因为这个函数通常用来逐步执行预编译的SQL语句,适用于需要进行参数绑定查询结果处理的复杂操作
+
+  而`sqlite3_exec()`通常是执行不需要绑定参数的简单操作
+
+  一般进行函数操作时,正常执行的返回码一般是`SQLITE_OK`,而如果执行的是DML的SQL则一般返回`SQLITE_DONE`或者`SQLITE_ROW`等
+
+**↓**
+
+- **清理资源**
+
+​		用`sqlite3_finalize(stmt)`去手动释放由`sqlite3_prepare_v2(db,sql.c_str(),-1,&stmt,nullptr)`分配内存的stmt对象,这		两个函数常常是成对出现的
+
+##### `bool loginUser()`
+
+```cpp
+//  用户登录函数
+bool loginUser(const string username,const string password) {
+    //  构建查询用户密码的sql语句
+    string sql = "SELECT password FROM users WHERE username = ?;";
+    sqlite3_stmt* stmt;
+
+    //  准备sql语句
+    if (sqlite3_prepare_v2(db,sql.c_str(),-1,&stmt,nullptr) != SQLITE_OK) {
+        //  如果准备SQL失败，打印日志并返回false
+        LOG_INFO("Failed to prepare login SQL for user: %s",username.c_str());
+        return false;
+    }
+
+    //  绑定用户名参数
+    sqlite3_bind_text(stmt,1,username.c_str(),-1,SQLITE_STATIC);
+
+    //  执行SQL语句		此处一定是不等于SQLITE_ROW才有错误，因为SQLITE_ROW这个宏表示查询并用结果这才是正确的
+    //					SQLITE_DONE是查询但没结果，跟SQLITE_ERROR一样都不正确
+    if(sqlite3_step(stmt) != SQLITE_ROW) {
+        //  如果用户名不存在，记录日志并返回false
+        LOG_INFO("User not found: %s",username.c_str());
+        sqlite3_finalize(stmt);
+        return false;
+    }
+
+    //  获取查询后得到的密码
+    const char* stored_password = reinterpret_cast<const char*>(sqlite3_column_text(stmt,0));
+    
+	sqlite3_finalize(stmt);
+    //  检查密码是否匹配
+    //	细节 先进行判空再进行比较判断，防止后面通过该指针生成password_str出错
+    if(stored_password == nullptr) {
+        LOG_INFO("Stored password is null for user %s",username.c_str());
+        return false;
+    }
+    string password_str(stored_password,sqlite3_column_bytes(stmt,0));
+    if(password_str.compare(password) != 0) {
+        //  如果密码不匹配，记录日志并返回false
+        LOG_INFO("Login failed for user: %s",username.c_str());
+        return false;
+    }
+
+    //  登录成功，记录日志并返回true
+    LOG_INFO("User logged in: %s",username.c_str());
+    return true;
+}
+```
+
+- **构建SQL语句**
+
+- **预编译语句，并绑定参数**
+
+- **执行语句**
+
+  这里注意返回结果是`SQLITE_ROW`
+
+- **查询密码**
+
+  这里要注意先判空再构造str,再进行判断
+
+- **进行逻辑判断并返回结果**
+
+##### `Database.h`
+
+> Database.h
+
+```cpp
+#pragma once
+#include <sqlite3.h>        //  数据库的头文件
+#include <string>
+#include <stdexcept>        //  错误管理的头文件
+
+#include "Logger.h"
+using namespace std;
+
+
+class Database {
+private:
+    sqlite3* db;
+
+public:
+    //  构造函数，用于打开数据库并创建用户表
+    Database(const string& db_path) {
+        //  使用sqlite3_open打开数据库
+        //  &db是指向数据库连接对象的指针
+        if(sqlite3_open(db_path.c_str(),&db) != SQLITE_OK) {
+            //  如果数据库打开失败，就抛出数据库运行时的错误
+            throw runtime_error("Failed to open database");
+        }
+
+        //  定义创建用户表的SQL语句
+        //  两个字段，用户名和密码，都是TEXT类型
+        const char* sql = "CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT);";
+        char* errmsg =nullptr;
+
+        //  执行sql语句创建表
+        //  sqlite3_exec用于执行SQL语句
+        //  db是数据库连接对象
+        //  后面的参数是回调函数和它的参数，这里不需要回调所以传0
+        //  errmsg用于传递错误信息
+        if (sqlite3_exec(db,sql,0,0,&errmsg) != SQLITE_OK) {
+            //  如果创建表失败，抛出运行错误并附带错误信息
+            string error_msg = errmsg;	//	获取错误信息
+            sqlite3_free(errmsg);	//	释放错误信息内存
+            throw runtime_error("Failed to create table: " + error_msg);
+        }
+    }
+
+    //  析构函数，用于关闭数据库连接
+    ~Database() {
+        //  关闭数据库连接
+        //  sqlite3_close用于关闭和释放数据库连接资源
+        //  db是数据库连接对象
+        sqlite3_close(db);
+    }
+
+    //  用户注册函数    -- 需要接收前端传入的username 和 password
+    bool registerUser(const string& username, const string& password) {
+        //  构建sql语句用于插入新用户
+        string sql = "INSERT INTO users (username, password) VALUES(?, ?);";
+        sqlite3_stmt* stmt;
+
+        //  准备sql语句，预编译以防止sql注入攻击
+        if (sqlite3_prepare_v2(db,sql.c_str(),-1,&stmt,nullptr) != SQLITE_OK) {
+            //  如果准备语句失败，记录日志并返回false
+            LOG_INFO("Failed to prepare registration SQL for users: %s", username.c_str());
+            return false;
+        }
+
+        //  绑定SQL语句中的参数，防止SQL注入
+        sqlite3_bind_text(stmt,1,username.c_str(),-1,SQLITE_STATIC);
+        sqlite3_bind_text(stmt,2,password.c_str(),-1,SQLITE_STATIC);
+
+        //  执行SQL语句，进行用户注册
+        if (sqlite3_step(stmt) != SQLITE_DONE) {
+            //  如果执行失败，记录日志，清理资源并返回false
+            LOG_INFO("Register failed for user: %s",username.c_str());
+            return false;
+        }
+
+        //  清理资源，关闭SQL语句
+        sqlite3_finalize(stmt);
+        //  记录用户注册成功的日志，实际上不建议这么写日志，但这里是为了看效果
+        LOG_INFO("User registered : %s with password : %s",username.c_str(),password.c_str());
+        return true;
+    }
+
+    //  用户登录函数
+    bool loginUser(const string username,const string password) {
+        //  构建查询用户密码的sql语句
+        string sql = "SELECT password FROM users WHERE username = ?;";
+        sqlite3_stmt* stmt;
+
+        //  准备sql语句
+        if (sqlite3_prepare_v2(db,sql.c_str(),-1,&stmt,nullptr) != SQLITE_OK) {
+            //  如果准备SQL失败，打印日志并返回false
+            LOG_INFO("Failed to prepare login SQL for user: %s",username.c_str());
+            return false;
+        }
+
+        //  绑定用户名参数
+        sqlite3_bind_text(stmt,1,username.c_str(),-1,SQLITE_STATIC);
+        
+        //  执行SQL语句
+        if(sqlite3_step(stmt) != SQLITE_ROW) {
+            //  如果用户名不存在，记录日志并返回false
+            LOG_INFO("User not found: %s",username.c_str());
+            sqlite3_finalize(stmt);
+            return false;
+        }
+
+        //  获取查询后得到的密码
+        const char* stored_password = reinterpret_cast<const char*>(sqlite3_column_text(stmt,0));
+        
+	    sqlite3_finalize(stmt);
+        
+        //  检查密码是否匹配
+        //	细节 先进行判空再进行比较判断，防止后面通过该指针生成password_str出错
+        if(stored_password == nullptr) {
+            LOG_INFO("Stored password is null for user %s",username.c_str());
+         return false;
+        }
+        string password_str(stored_password,sqlite3_column_bytes(stmt,0));
+        if(password_str.compare(password) != 0) {
+            //  如果密码不匹配，记录日志并返回false
+            LOG_INFO("Login failed for user: %s",username.c_str());
+            return false;
+        }
+
+
+};
+```
+
+#### 将Database集成到server.cpp中
+
+主要多了个解析请求体的函数,同时路由函数也做了一定的修改
+
+##### `parseFromBody()`
+
+```cpp
+#include <sstream>          //  istringstream
+//  从请求体中解析用户名和密码
+map<string,string> parseFromBody(const string& request) {
+    //  从请求中解析出请求体
+    string tmp(request);
+    size_t body_start = tmp.find("\r\n\r\n");		
+    //	在HTTP请求中，头部字段和请求体之间的间隔符通常是"\r\n\r\n"。这是因为HTTP协议规定了使用CRLF（Carriage Return Line Feed，回车换行）作为行的结束符，而不是单独的换行符。
+    string body = tmp.substr(body_start + 4);
+	
+    //	存储键值对
+    map<string,string> params;
+    //	创建一个字符串流对象`stream`,用来从字符串body中读取数据,body是请求体的具体内容
+    istringstream stream(body);
+    string pair;
+
+    LOG_INFO("Parsing body: %s",body.c_str());
+
+    //	每次读取一段字符串(截止到&,但不包括)放在pair中
+    //	比如原本是username=yuanshen&password=123456
+    //	第一次读取username=yuanshen放在pair中
+    //	第二次没有&因此就全部读取到了pair中也就是password=123456
+    while(getline(stream,pair,'&')) {
+        string::size_type pos = pair.find('=');
+        //	其中npos表示一个无效或不存在的位置或索引,此处用来表示没找到
+        if (pos != string::npos) {
+            string key = pair.substr(0,pos);
+            string value = pair.substr(pos+1);
+            params[key] = value;
+            LOG_INFO("Parsed key-value pair: %s = %s",key.c_str(),value.c_str());
+        } else {
+            //  错误处理 找不到"="分隔符
+            string error_msg = "Error parsing: "+pair;
+            LOG_ERROR(error_msg.c_str());   //  记录错误信息
+            cerr << error_msg <<endl;
+        }
+    }
+    return params;
+}
+```
+
+==此处将body转换为字符流stream的形式来进行操作==,是因为使用getline()(该函数的第一个参数是流对象包括文件流标准输入流和字符流)很容易就能按照指定分隔符分隔字符串
+
+##### `setupRoutes()`
+
+```cpp
+//  POST请求处理
+    post_routes["/register"] = [](const string request){
+        //  解析用户名和密码
+        //  例如从请求中解析 username 和 password 这里需要自己实现解析逻辑
+        auto params = parseFromBody(request);
+        string username = params["username"];
+        string password = params["password"];
+
+        //  调用数据库的方法进行注册
+        if (db.registerUser(username,password))
+            return "Register success";
+        else
+            return "Register failed";
+    };
+    //  修改登录路由
+    post_routes["/login"] = [](const string request){
+        //  解析用户名和密码
+        //  例如从请求中解析 username 和 password 这里需要自己实现解析逻辑
+        auto params = parseFromBody(request);
+        string username = params["username"];
+        string password = params["password"];
+
+        if (db.loginUser(username,password))
+            return "Login success";
+        else
+            return "Login fail";
+    };
+```
+
+主要修改在于POST请求的处理中多了注册和登录逻辑
+
+##### `server.cpp`
+
+> server.cpp
+
+```cpp
+//  创建数据库的全局变量
+Database db("user.db"); //  创建数据库对象
+
+
+//  从请求体中解析用户名和密码
+map<string,string> parseFromBody(const string& request) {
+    //  从请求中解析出请求体
+    string tmp(request);
+    size_t body_start = tmp.find("\r\n\r\n");
+    string body = tmp.substr(body_start + 4);
+
+    map<string,string> params;
+    istringstream stream(body);
+    string pair;
+
+    LOG_INFO("Parsing body: %s",body.c_str());
+
+    while(getline(stream,pair,'&')) {
+        string::size_type pos = pair.find('=');
+        if (pos != string::npos) {
+            string key = pair.substr(0,pos);
+            string value = pair.substr(pos+1);
+            params[key] = value;
+            LOG_INFO("Parsed key-value pair: %s = %s",key.c_str(),value.c_str());
+        } else {
+            //  错误处理 找不到"="分隔符
+            string error_msg = "Error parsing: "+pair;
+            LOG_ERROR(error_msg.c_str());   //  记录错误信息
+            cerr << error_msg <<endl;
+        }
+    }
+    return params;
+}
+
+//  初始化路由表    --  为不同的路径设置不同的处理函数  --主要作用是填充，因此返回值是void
+void setupRoutes(){
+    LOG_INFO("Setting up routes");                  //记录路由设置
+    //  GET请求处理
+    get_routes["/"] = [](const string request){
+        return "Hello World!";
+    };
+    get_routes["/register"] = [](const string request){
+        //  实现用户注册逻辑
+        return "Please use post to register";
+    };
+    get_routes["/login"] = [](const string request){
+        //  实现用户登录逻辑
+        return "Please use post to login";
+    };
+    
+    //  POST请求处理
+    post_routes["/register"] = [](const string request){
+        //  解析用户名和密码
+        //  例如从请求中解析 username 和 password 这里需要自己实现解析逻辑
+        auto params = parseFromBody(request);
+        string username = params["username"];
+        string password = params["password"];
+
+        //  调用数据库的方法进行注册
+        if (db.registerUser(username,password))
+            return "Register success";
+        else
+            return "Register failed";
+    };
+    //  修改登录路由
+    post_routes["/login"] = [](const string request){
+        //  解析用户名和密码
+        //  例如从请求中解析 username 和 password 这里需要自己实现解析逻辑
+        auto params = parseFromBody(request);
+        string username = params["username"];
+        string password = params["password"];
+
+        if (db.loginUser(username,password))
+            return "Login success";
+        else
+            return "Login fail";
+    };
+}
+
+```
+

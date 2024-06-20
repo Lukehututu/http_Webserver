@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.15)
+project(V2)
+find_package(SQLite3 REQUIRED)
+target_link_libraries(server sqlite3)
+set(HOME ../)
+set(EXECUTABLE_OUTPUT_PATH ${HOME}/app/)
+add_executable(server server.cpp Logger.h Database.h)
