@@ -256,7 +256,7 @@ void error_handling(string err){
 
 ![image-20240619125812093](C:\Users\Luk1\AppData\Roaming\Typora\typora-user-images\image-20240619125812093.png)
 
-## V2
+## V2-logger
 
 在本版本中将加入日志系统.
 
@@ -495,7 +495,7 @@ public:
 //  宏会在编译阶段替换为Logger::logMessage(INFO,"Hello,%s",name)
 ```
 
-## V3
+## V3-sqlite
 
 ### 加入登录功能以及数据库设计
 
@@ -723,7 +723,6 @@ bool loginUser(const string username,const string password) {
     //  获取查询后得到的密码
     const char* stored_password = reinterpret_cast<const char*>(sqlite3_column_text(stmt,0));
     
-	sqlite3_finalize(stmt);
     //  检查密码是否匹配
     //	细节 先进行判空再进行比较判断，防止后面通过该指针生成password_str出错
     if(stored_password == nullptr) {
@@ -731,6 +730,7 @@ bool loginUser(const string username,const string password) {
         return false;
     }
     string password_str(stored_password,sqlite3_column_bytes(stmt,0));
+    sqlite3_finalize(stmt);		//	在最后一次使用完stmt后立刻释放资源
     if(password_str.compare(password) != 0) {
         //  如果密码不匹配，记录日志并返回false
         LOG_INFO("Login failed for user: %s",username.c_str());
@@ -869,22 +869,23 @@ public:
         //  获取查询后得到的密码
         const char* stored_password = reinterpret_cast<const char*>(sqlite3_column_text(stmt,0));
         
-	    sqlite3_finalize(stmt);
-        
         //  检查密码是否匹配
         //	细节 先进行判空再进行比较判断，防止后面通过该指针生成password_str出错
         if(stored_password == nullptr) {
             LOG_INFO("Stored password is null for user %s",username.c_str());
          return false;
         }
+        
         string password_str(stored_password,sqlite3_column_bytes(stmt,0));
+        sqlite3_finalize(stmt);		//	在最后一次使用完stmt后立刻释放资源
         if(password_str.compare(password) != 0) {
             //  如果密码不匹配，记录日志并返回false
             LOG_INFO("Login failed for user: %s",username.c_str());
             return false;
         }
-
-
+		 //  登录成功，记录日志并返回true
+        LOG_INFO("User logged in: %s",username.c_str());
+        return true;
 };
 ```
 
@@ -1055,5 +1056,188 @@ void setupRoutes(){
     };
 }
 
+```
+
+## V4-epoll
+
+将原先的简单的server.cpp改造成epoll模型
+
+```cpp
+int main(int argc,char* argv[]){
+
+    if(argc != 2){
+        perror("argc");
+    }
+
+    //  1.创建相关变量
+    string method,uri;
+    int listen_fd;
+    int clnt_fd;
+    struct sockaddr_in listen_addr,clnt_addr;
+    socklen_t socklen = sizeof(clnt_addr);
+
+    //  2.绑定变量
+    listen_fd = socket(AF_INET,SOCK_STREAM,0);
+    if(listen_fd == -1) {
+        error_handling("socket()");
+        close(listen_fd);
+        exit(EXIT_FAILURE);
+    }
+    setNonBlocking(listen_fd);
+    LOG_INFO("socket created");
+
+    //  填充地址结构体
+    listen_addr.sin_family = AF_INET;
+    listen_addr.sin_port = htons(atoi(argv[1]));
+    listen_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    
+    //  3.bind
+    if(bind(listen_fd,(struct sockaddr*)&listen_addr,sizeof(listen_addr)) == -1){
+        error_handling("bind");
+        close(listen_fd);
+        exit(EXIT_FAILURE);
+    }
+
+    //  4.listen
+    if(listen(listen_fd,5) == -1){
+        error_handling("listen");
+        close(listen_fd);
+    }
+    LOG_INFO("Server listening on port %d",PORT);   //记录服务器监听
+    
+    //  设置路由
+    setupRoutes();
+    LOG_INFO("Server starting");
+
+    //  创建epoll实例
+    int ep_cnt = 0;
+    int epfd = epoll_create(EPOLL_SZ);
+    if( epfd == -1) {
+        LOG_ERROR("epoll_create -1");  //  注册时间失败，记录错误日志
+        exit(EXIT_FAILURE);
+    }
+    //  给events分配空间
+    size_t ep_sz = sizeof(struct epoll_event);
+    auto events = new struct epoll_event[EPOLL_SZ * ep_sz];
+
+    //  先将主线程的listen_fd以读事件注册进去
+    struct epoll_event event;       //用来存储具体变量信息
+    event.events = EPOLLIN;
+    event.data.fd = listen_fd;
+    if(epoll_ctl(epfd,EPOLL_CTL_ADD,listen_fd,&event) == -1) {
+        LOG_ERROR("epoll_ctl: listen_fd");  //  注册事件失败，记录错误日志
+        exit(EXIT_FAILURE);
+    }
+    
+
+    //  处理请求的循环体
+    char buffer[BUF_SZ];
+    ssize_t strlen = 0;
+    while(1){
+        //  开始监听
+        ep_cnt = epoll_wait(epfd,events,EPOLL_SZ,-1);
+        if (ep_cnt == -1) {
+            LOG_ERROR("epoll_wait error");
+            break;
+        }
+        //  此时检测到有要读的信息，开始轮询(事件轮询)
+        for(int i = 0;i < ep_cnt ;++i) {
+            //  此时说明有新的连接，那就处理新的连接
+            if(events[i].data.fd == listen_fd) {
+                clnt_fd = accept(listen_fd,(struct sockaddr*)&clnt_addr,&socklen);
+                setNonBlocking(clnt_fd);    //  设置新连接为非阻塞模式
+                event.events = EPOLLIN | EPOLLET;
+                event.data.fd = clnt_fd;
+                if (epoll_ctl(epfd,EPOLL_CTL_ADD,clnt_fd,&event) == -1) {
+                    LOG_ERROR("Error adding new socket to epoll");
+                    exit(EXIT_FAILURE);
+                } else {
+                    LOG_INFO("New connection accepted");
+                }
+            }
+            //  此时就是普通客户端来的请求
+            else {
+                //  边缘触发就靠重复读取该事件的缓冲区来获得所有数据
+                string Request;
+                while(1) {
+                    strlen = read(events[i].data.fd,buffer,BUF_SZ);
+                    if( strlen == -1) {
+                        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                            //  没有数据可读了
+                            break;
+                        } else {
+                            //  此时真正的出错了
+                            error_handling("read");
+                            close(events[i].data.fd);
+                            break;
+                        }
+                    } else if ( strlen == 0) {
+                        break;
+                    } else {
+                        buffer[strlen] = '\0';
+                        Request += buffer;
+                    }
+                }
+                auto [method,url,body] = parsehttpRequest(Request);
+                auto response_body = handlehttpRequest(method,url,body);
+                string response = "HTTP/1.1 200 OK\nContent-Type: text/plain\n\n" + response_body;
+                send(events[i].data.fd,response.c_str(),response.size(),0);
+                //  将其移除epoll池
+                epoll_ctl(epfd,EPOLL_CTL_DEL,events[i].data.fd,nullptr);
+                close(events[i].data.fd);
+                LOG_INFO("Request handled and response sent on socket: %d",events[i].data.fd);
+            }
+
+        }   
+    }
+    //  7.close socket
+    close(listen_fd);
+    close(epfd);
+    delete[] events;	//	释放events数组
+}
+
+//  将目标套接字设置为非阻塞模式
+void setNonBlocking(const int& fd) {
+
+    /* fcntl(int fd,        --  要操作目标的fd
+             int cmd,       --  表示函数调用的目的
+             ...        )*/
+    //  获取之前设置的属性信息  -- 如果cmd传F_GETFL,那返回第一个参数所指的fd的属性
+    int flag = fcntl(fd,F_GETFL);
+    //  修改属性 -- 在此基础上添加非阻塞标志O_NONBLOCK 利用|添加
+    flag |= O_NONBLOCK;
+    fcntl(fd,F_SETFL,flag);
+    //  这样当调用recv&send时都会形成非阻塞文件
+}
+```
+
+最需要注意的是当要接收客户端请求的时候read返回值的处理
+
+```cpp
+else {
+            //  边缘触发就靠重复读取该事件的缓冲区来获得所有数据
+            string Request;
+            while(1) {
+                strlen = read(events[i].data.fd,buffer,BUF_SZ);
+                if( strlen == -1) {
+                    if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                        //  没有数据可读了
+                        break;
+                    } else {
+                        //  此时真正的出错了
+                        error_handling("read");
+                        close(events[i].data.fd);
+                        break;
+                    }
+                } else if ( strlen == 0) {
+                    //	一般是对方关闭了连接
+                    break;
+                } else {
+                    buffer[strlen] = '\0';
+                    Request += buffer;
+                }
+            }
+	...
+}
 ```
 
