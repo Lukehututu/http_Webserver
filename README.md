@@ -45,13 +45,13 @@ GET和POST请求
 
   请求获取服务器资源,参数出现在URL中
 
-  ![image-20240618220203236](F:\project\http_WebServer\image\image-20240618220203236.png)
+  ![image-20240618220203236](F:\project\http_WebServer\image\image-20240618220203236-1720856780514-1.png)
 
 - **POST请求**
 
   提交数据给服务器,数据包含在请求体内
 
-  ![image-20240618220350680](F:\project\http_WebServer\image\image-20240618220350680.png)
+  ![image-20240618220350680](F:\project\http_WebServer\image\image-20240618220350680-1720856780523-2.png)
 
 **请求的解析**
 
@@ -246,15 +246,15 @@ void error_handling(string err){
 
 ```
 
-![v1流程](F:\project\http_WebServer\image\v1流程.png)
+![v1流程](F:\project\http_WebServer\image\v1流程-1720856780523-3.png)
 
 ### 测试
 
 在编译并运行`Server`成功后,可以通过`curl`命令进行测试,或者直接在浏览器上测试
 
-![image-20240619125458159](C:\Users\Luk1\AppData\Roaming\Typora\typora-user-images\image-20240619125458159.png)
+![image-20240619125458159](F:\project\http_WebServer\image\image-20240619125458159.png)
 
-![image-20240619125812093](C:\Users\Luk1\AppData\Roaming\Typora\typora-user-images\image-20240619125812093.png)
+![image-20240619125812093](F:\project\http_WebServer\image\image-20240619125812093.png)
 
 ## V2-logger
 
@@ -420,7 +420,7 @@ int main(){
 //	会自动填充INFO后面的参数列表
 ```
 
-![image-20240619154409829](C:\Users\Luk1\AppData\Roaming\Typora\typora-user-images\image-20240619154409829.png)
+![image-20240619154409829](F:\project\http_WebServer\image\image-20240619154409829.png)
 
 #### 完整的头文件
 
@@ -2116,25 +2116,7 @@ public:
     
     //  设置数据库有关的路由
     void setupDatabaseRoutes(Database& db) {
-
-        //  GET登录和注册 -- 获取静态资源           但实际上对于get请求的处理函数不传request也没事，因为没用到
-        addRoute("GET","/login",[this](HttpRequest request) {
-            HttpResponse response;
-            response.setStatusCode(200);
-            response.setHeader("Content-Type","text/html");
-            response.setBody(readfile("../static_re/login.html")); //  读取html文件
-            return response;
-        });
-        addRoute("GET","/register",[this](HttpRequest request) {
-            HttpResponse response;
-            response.setStatusCode(200);
-            response.setHeader("Content-Type","text/html");
-            response.setBody(readfile("../static_re/register.html")); //  读取html文件
-            return response;
-        });
         
-
-
         //  POST登录和注册 -- 获取表单数据
         addRoute("POST","/register" ,[&db,this](HttpRequest request) {
             HttpResponse response;
@@ -2155,6 +2137,7 @@ public:
                 return HttpResponse::makeErrorResponse(400,"Register Failed");
             }
         });
+        
         addRoute("POST","/login" ,[&db](HttpRequest request) {
             HttpResponse response;
             response.setHeader("Content-Type","text/html");
@@ -2287,6 +2270,22 @@ public:
         //  设置与数据库有关的路由
         router.setupDatabaseRoutes(this->db);
         //  其他路由在这里添加...
+        
+        //  GET登录和注册 -- 获取静态资源           但实际上对于get请求的处理函数不传request也没事，因为没用到
+        addRoute("GET","/login",[this](HttpRequest request) {
+            HttpResponse response;
+            response.setStatusCode(200);
+            response.setHeader("Content-Type","text/html");
+            response.setBody(readfile("../static_re/login.html")); //  读取html文件
+            return response;
+        });
+        addRoute("GET","/register",[this](HttpRequest request) {
+            HttpResponse response;
+            response.setStatusCode(200);
+            response.setHeader("Content-Type","text/html");
+            response.setBody(readfile("../static_re/register.html")); //  读取html文件
+            return response;
+        });
     }
 
 
@@ -2451,7 +2450,6 @@ int main(int argc,char* argv[] ) {
     }
     Database db("user.db");
     HttpServer server(port,10,db);
-    server.setupRoutes();
     server.start();
     return 0;
 }
@@ -2471,17 +2469,55 @@ Logger\Databash\ThreadPool和之前的一样
 - **400 Bad Request**: 表示客户端发送的请求有错误，通常用于请求格式错误或缺少必要参数。
 - **409 Conflict**: 表示请求与服务器当前的状态冲突。通常用于注册时用户已存在的情况。
 
+#### 流程梳理
+
+![main](F:\project\http_WebServer\image\main-1720856780523-5.png)
 
 
 
+![HttpServer](F:\project\http_WebServer\image\HttpServer-1720856780523-4.png)
 
+![Router](F:\project\http_WebServer\image\Router-1720856780523-7.png)
 
+![HttpResponse](F:\project\http_WebServer\image\HttpResponse-1720856780523-6.png)
 
-
+![HttpRequest](F:\project\http_WebServer\image\HttpRequest.png)
 
 
 
 ### 前后端联动机制
 
-![未命名绘图.drawio](F:\project\http_WebServer\image\未命名绘图.drawio.png)
+![未命名绘图.drawio](F:\project\http_WebServer\image\未命名绘图.drawio-1720856780523-8.png)
 
+## 项目总结
+
+### 基本架构
+
+- **事件驱动模型**：采用`epoll`为I/O多路复用技术,实现非阻塞I/O操作,提高服务器处理并发连接的能力
+- **线程池**：通过创建一定数量的线程并将它们放入线程池中,可以有效地管理复用线程资源,减少线程创建和线程的开销,提高服务器的响应速度
+  - **线程安全**：使用互斥锁(例如`mutex`)保护临界资源,确保服务器在多线程环境下稳定运行
+- **日志系统**：永宏函数方便的实现了Logger,便于记录服务器的运行信息
+
+### 优势
+
+- C++新特性
+- 分布式反向代理
+- SQL防注入
+
+### 模型选择
+
+本项目选用的**Reactor**模型
+
+#### 弄清非阻塞同步模型和异步IO模型的区别
+
+IO读取数据分为两个阶段，第一个阶段是内核准备好数据，第二个阶段是内核把数据从内核态拷贝到用户态。 
+
+阻塞IO是当用户调用 read 后，用户线程会被阻塞，等内核数据准备好并且数据从内核缓冲区拷贝到用户态缓存区后， read 才会返回。阻塞IO是两个阶段都会阻塞，没有数据时也会阻塞。 
+
+非阻塞IO是调用read后，如果没有数据就立马返回，通过不断轮询的方式去调用read，直到数据被拷贝到用户态的应用程序缓冲区，read请求才获取到结果。非阻塞IO阻塞的是第二个阶段，第一阶段没有数据时不会阻塞，第二阶段等待内核把数据从内核态拷贝到用户态的过程中才会阻塞。
+
+同步 IO是应用程序发起一个 IO 操作后，必须等待内核把 IO 操作处理完成后才返回。无论 read 是阻塞 I/O，还是非阻塞 I/O， 都是同步调用，因为在 read 调用时，第二阶段内核将数据从内核空间拷贝到用户空间的过程都是需要等待的。 
+
+异步 IO应用程序发起一个 IO 操作后，调用者不能立刻得到结果，而是在内核完成 IO 操作后，通过信号或回调来通知调用者。异步 I/O 是内核数据准备好和数据从内核态拷贝到用户态这两个过程都不用等待。 
+
+总结一下，只有同步才有阻塞和非阻塞之分，异步必定是非阻塞的。 只有用户线程在操作IO的时候根本不去考虑IO的执行，全部都交给内核去完成， 而自己只等待一个完成信号的时候，才是真正的异步IO。select、poll、epool等IO多路复用方式都是同步的。

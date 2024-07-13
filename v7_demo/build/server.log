@@ -1,0 +1,276 @@
+Sat Jul 13 23:52:35 2024
+ [INFO] socket created
+Sat Jul 13 23:52:35 2024
+ [INFO] Server listening on port 8080
+Sat Jul 13 23:52:35 2024
+ [INFO] start loop
+Sat Jul 13 23:52:35 2024
+ [INFO] 1
+Sat Jul 13 23:52:35 2024
+ [INFO] Thread1520838400 waiting...
+Sat Jul 13 23:52:35 2024
+ [INFO] Thread1520838400 acquired lock
+Sat Jul 13 23:52:35 2024
+ [INFO] Thread1537623808 waiting...
+Sat Jul 13 23:52:35 2024
+ [INFO] Thread1537623808 acquired lock
+Sat Jul 13 23:52:35 2024
+ [INFO] Thread1529231104 waiting...
+Sat Jul 13 23:52:35 2024
+ [INFO] Thread1529231104 acquired lock
+Sat Jul 13 23:52:35 2024
+ [INFO] Thread1546016512 waiting...
+Sat Jul 13 23:52:35 2024
+ [INFO] Thread1546016512 acquired lock
+Sat Jul 13 23:52:39 2024
+ [INFO] 2
+Sat Jul 13 23:52:39 2024
+ [INFO] new connection
+Sat Jul 13 23:52:39 2024
+ [INFO] New connection accepted
+Sat Jul 13 23:52:39 2024
+ [INFO] 1
+Sat Jul 13 23:52:39 2024
+ [INFO] 2
+Sat Jul 13 23:52:39 2024
+ [INFO] new connection
+Sat Jul 13 23:52:39 2024
+ [INFO] New connection accepted
+Sat Jul 13 23:52:39 2024
+ [INFO] 1
+Sat Jul 13 23:52:39 2024
+ [INFO] 2
+Sat Jul 13 23:52:39 2024
+ [INFO] notify_one
+Sat Jul 13 23:52:39 2024
+ [INFO] 1
+Sat Jul 13 23:52:39 2024
+ [INFO] thread wake up...
+Sat Jul 13 23:52:39 2024
+ [INFO] Thread1520838400 release exit...
+Sat Jul 13 23:52:39 2024
+ [INFO] handle
+Sat Jul 13 23:52:39 2024
+ [INFO] HTTP/1.1 200 OK
+Content-Type: text/plain
+Content-Length: 12
+Sat Jul 13 23:52:39 2024
+ [INFO] Thread1520838400 waiting...
+Sat Jul 13 23:52:39 2024
+ [INFO] Thread1520838400 acquired lock
+Sat Jul 13 23:52:40 2024
+ [INFO] 2
+Sat Jul 13 23:52:40 2024
+ [INFO] new connection
+Sat Jul 13 23:52:40 2024
+ [INFO] New connection accepted
+Sat Jul 13 23:52:40 2024
+ [INFO] 1
+Sat Jul 13 23:52:46 2024
+ [INFO] 2
+Sat Jul 13 23:52:46 2024
+ [INFO] notify_one
+Sat Jul 13 23:52:46 2024
+ [INFO] 1
+Sat Jul 13 23:52:46 2024
+ [INFO] thread wake up...
+Sat Jul 13 23:52:46 2024
+ [INFO] Thread1537623808 release exit...
+Sat Jul 13 23:52:46 2024
+ [INFO] handle
+Sat Jul 13 23:52:46 2024
+ [INFO] HTTP/1.1 200 OK
+Content-Type: text/html
+Content-Length: 1798
+Sat Jul 13 23:52:46 2024
+ [INFO] Thread1537623808 waiting...
+Sat Jul 13 23:52:46 2024
+ [INFO] Thread1537623808 acquired lock
+Sat Jul 13 23:52:51 2024
+ [INFO] 2
+Sat Jul 13 23:52:51 2024
+ [INFO] notify_one
+Sat Jul 13 23:52:51 2024
+ [INFO] 1
+Sat Jul 13 23:52:51 2024
+ [INFO] thread wake up...
+Sat Jul 13 23:52:51 2024
+ [INFO] Thread1529231104 release exit...
+Sat Jul 13 23:52:51 2024
+ [INFO] handle
+Sat Jul 13 23:52:51 2024
+ [INFO] Parsed key-value pair: username = abc
+Sat Jul 13 23:52:51 2024
+ [INFO] Parsed key-value pair: password = 123
+Sat Jul 13 23:52:51 2024
+ [INFO] User not found: abc
+Sat Jul 13 23:52:51 2024
+ [INFO] HTTP/1.1 401 Unknown
+Content-Type: text/html
+Content-Length: 47
+Sat Jul 13 23:52:51 2024
+ [INFO] Thread1529231104 waiting...
+Sat Jul 13 23:52:51 2024
+ [INFO] Thread1529231104 acquired lock
+Sat Jul 13 23:52:52 2024
+ [INFO] 2
+Sat Jul 13 23:52:52 2024
+ [INFO] new connection
+Sat Jul 13 23:52:52 2024
+ [INFO] New connection accepted
+Sat Jul 13 23:52:52 2024
+ [INFO] 1
+Sat Jul 13 23:53:06 2024
+ [INFO] 2
+Sat Jul 13 23:53:06 2024
+ [INFO] notify_one
+Sat Jul 13 23:53:06 2024
+ [INFO] 1
+Sat Jul 13 23:53:06 2024
+ [INFO] thread wake up...
+Sat Jul 13 23:53:06 2024
+ [INFO] Thread1546016512 release exit...
+Sat Jul 13 23:53:06 2024
+ [INFO] handle
+Sat Jul 13 23:53:06 2024
+ [INFO] HTTP/1.1 200 OK
+Content-Type: text/html
+Content-Length: 1814
+Sat Jul 13 23:53:06 2024
+ [INFO] Thread1546016512 waiting...
+Sat Jul 13 23:53:06 2024
+ [INFO] Thread1546016512 acquired lock
+Sat Jul 13 23:53:06 2024
+ [INFO] 2
+Sat Jul 13 23:53:06 2024
+ [INFO] new connection
+Sat Jul 13 23:53:06 2024
+ [INFO] New connection accepted
+Sat Jul 13 23:53:06 2024
+ [INFO] 1
+Sat Jul 13 23:53:12 2024
+ [INFO] 2
+Sat Jul 13 23:53:12 2024
+ [INFO] notify_one
+Sat Jul 13 23:53:12 2024
+ [INFO] 1
+Sat Jul 13 23:53:12 2024
+ [INFO] thread wake up...
+Sat Jul 13 23:53:12 2024
+ [INFO] Thread1520838400 release exit...
+Sat Jul 13 23:53:12 2024
+ [INFO] handle
+Sat Jul 13 23:53:12 2024
+ [INFO] Parsed key-value pair: username = abc
+Sat Jul 13 23:53:12 2024
+ [INFO] Parsed key-value pair: password = 123
+Sat Jul 13 23:53:12 2024
+ [INFO] User registered : abc with password : 123
+Sat Jul 13 23:53:12 2024
+ [INFO] HTTP/1.1 302 Moved Permanently
+Location: /login
+Content-Type: text/html
+Content-Length: 0
+Sat Jul 13 23:53:12 2024
+ [INFO] Thread1520838400 waiting...
+Sat Jul 13 23:53:12 2024
+ [INFO] Thread1520838400 acquired lock
+Sat Jul 13 23:53:12 2024
+ [INFO] 2
+Sat Jul 13 23:53:12 2024
+ [INFO] new connection
+Sat Jul 13 23:53:12 2024
+ [INFO] New connection accepted
+Sat Jul 13 23:53:12 2024
+ [INFO] 1
+Sat Jul 13 23:53:12 2024
+ [INFO] 2
+Sat Jul 13 23:53:12 2024
+ [INFO] notify_one
+Sat Jul 13 23:53:12 2024
+ [INFO] 1
+Sat Jul 13 23:53:12 2024
+ [INFO] thread wake up...
+Sat Jul 13 23:53:12 2024
+ [INFO] Thread1537623808 release exit...
+Sat Jul 13 23:53:12 2024
+ [INFO] handle
+Sat Jul 13 23:53:12 2024
+ [INFO] HTTP/1.1 200 OK
+Content-Type: text/html
+Content-Length: 1798
+Sat Jul 13 23:53:12 2024
+ [INFO] Thread1537623808 waiting...
+Sat Jul 13 23:53:12 2024
+ [INFO] Thread1537623808 acquired lock
+Sat Jul 13 23:53:16 2024
+ [INFO] 2
+Sat Jul 13 23:53:16 2024
+ [INFO] new connection
+Sat Jul 13 23:53:16 2024
+ [INFO] New connection accepted
+Sat Jul 13 23:53:16 2024
+ [INFO] 1
+Sat Jul 13 23:53:17 2024
+ [INFO] 2
+Sat Jul 13 23:53:17 2024
+ [INFO] new connection
+Sat Jul 13 23:53:17 2024
+ [INFO] New connection accepted
+Sat Jul 13 23:53:17 2024
+ [INFO] 1
+Sat Jul 13 23:53:17 2024
+ [INFO] 2
+Sat Jul 13 23:53:17 2024
+ [INFO] notify_one
+Sat Jul 13 23:53:17 2024
+ [INFO] 1
+Sat Jul 13 23:53:17 2024
+ [INFO] thread wake up...
+Sat Jul 13 23:53:17 2024
+ [INFO] Thread1529231104 release exit...
+Sat Jul 13 23:53:17 2024
+ [INFO] handle
+Sat Jul 13 23:53:17 2024
+ [INFO] Parsed key-value pair: username = abc
+Sat Jul 13 23:53:17 2024
+ [INFO] Parsed key-value pair: password = 123
+Sat Jul 13 23:53:17 2024
+ [INFO] User logged in: abc
+Sat Jul 13 23:53:17 2024
+ [INFO] HTTP/1.1 302 Moved Permanently
+Location: /index.html
+Content-Type: text/html
+Content-Length: 0
+Sat Jul 13 23:53:17 2024
+ [INFO] Thread1529231104 waiting...
+Sat Jul 13 23:53:17 2024
+ [INFO] Thread1529231104 acquired lock
+Sat Jul 13 23:53:17 2024
+ [INFO] 2
+Sat Jul 13 23:53:17 2024
+ [INFO] notify_one
+Sat Jul 13 23:53:17 2024
+ [INFO] 1
+Sat Jul 13 23:53:17 2024
+ [INFO] thread wake up...
+Sat Jul 13 23:53:17 2024
+ [INFO] Thread1546016512 release exit...
+Sat Jul 13 23:53:17 2024
+ [INFO] handle
+Sat Jul 13 23:53:17 2024
+ [INFO] HTTP/1.1 200 OK
+Content-Type: text/html
+Content-Length: 935
+Sat Jul 13 23:53:17 2024
+ [INFO] Thread1546016512 waiting...
+Sat Jul 13 23:53:17 2024
+ [INFO] Thread1546016512 acquired lock
+Sat Jul 13 23:53:17 2024
+ [INFO] 2
+Sat Jul 13 23:53:17 2024
+ [INFO] new connection
+Sat Jul 13 23:53:17 2024
+ [INFO] New connection accepted
+Sat Jul 13 23:53:17 2024
+ [INFO] 1
