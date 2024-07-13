@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registration Successful</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f2f2f2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        .container h2 {
+            margin: 0 0 15px;
+        }
+        .container p {
+            margin: 15px 0;
+        }
+        .container a {
+            color: #4CAF50;
+            text-decoration: none;
+        }
+    </style>
+    <script>
+        function redirectToLogin() {
+            setTimeout(function() {
+                window.location.href = 'login.html';
+            }, 5000);
+        }
+    </script>
+</head>
+<body onload="redirectToLogin()">
+    <div class="container">
+        <h2>Registration Successful</h2>
+        <p>Your registration was successful. You will be redirected to the login page shortly.</p>
+        <p>If you are not redirected, <a href="login.html">click here to go to the login page</a>.</p>
+    </div>
+</body>
+</html>

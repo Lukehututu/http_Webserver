@@ -1574,3 +1574,914 @@ int main(int argc,char* argv[]){
 
 ```
 
+分析:
+
+```cpp
+首先,循环threads,从而创建threads个线程.然后将每个线程推入workers数组中
+
+workers.emplace_back(thread);
+```
+
+**为什么此处使用emplace_back而非push_back?**
+
+在C++中，`emplace_back` 和 `push_back` 都用于向 `std::vector` 添加元素，但它们在使用方式和性能方面有一些重要区别。了解这些区别有助于理解为什么在这个场景中选择 `emplace_back` 而不是 `push_back`。
+
+#### `push_back` 与 `emplace_back` 的区别
+
+1. **`push_back`**：
+
+   - `push_back` 将一个已经构造好的对象添加到 `std::vector` 的末尾。
+   - 这个对象通常是通过拷贝或移动的方式添加的，这意味着可能会有额外的构造和析构开销。
+
+   示例：
+
+   ```cpp
+   std::vector<std::thread> workers;
+   std::thread t([] { /* thread function */ });
+   workers.push_back(std::move(t)); // 需要移动构造
+   ```
+
+2. **`emplace_back`**：
+
+   - `emplace_back` 直接在 `std::vector` 的末尾构造对象。
+   - 这避免了额外的拷贝或移动操作，因为对象是直接在目标位置构造的。
+   - `emplace_back` 接受构造对象所需的参数，并将这些参数直接传递给对象的构造函数。
+
+   示例：
+
+   ```cpp
+   std::vector<std::thread> workers;
+   workers.emplace_back([] { /* thread function */ }); // 直接构造
+   ```
+
+#### 为什么在这个场景中使用 `emplace_back`
+
+在线程池的实现中，使用 `emplace_back` 而不是 `push_back` 有几个明显的优势：
+
+1. **避免不必要的移动**：
+   - 使用 `emplace_back` 可以直接在 `workers` 容器中构造线程对象，而不是先构造一个临时的 `std::thread` 对象然后再移动它到容器中。这减少了一次移动构造的开销。
+
+2. **简洁性**：
+   - 使用 `emplace_back` 可以直接传递构造线程所需的参数（如 lambda 表达式），代码更简洁明了。
+   - 省去了显式构造临时对象的步骤，使代码更直观。
+
+3. **性能**：
+   - 直接在容器内部构造对象可以避免额外的构造和析构开销，提升性能。
+   - 特别是在涉及大对象或复杂构造函数时，这种性能提升更为明显。
+
+
+
+- **`emplace_back` 使用 lambda 表达式直接构造线程**：
+  通过 `emplace_back`，我们直接在 `workers` 向量的末尾构造一个 `std::thread` 对象，并且传递了一个 lambda 表达式作为其构造函数的参数。这样做避免了临时对象的创建和移动。
+
+- **简化了代码结构**：
+  通过使用 `emplace_back`，代码更加简洁。我们不需要显式创建一个 `std::thread` 临时对象并移动它到向量中，这使代码更易读，更直观。
+
+使用 `emplace_back` 而不是 `push_back` 的主要原因在于：
+
+- **性能优化**：避免了不必要的对象移动或拷贝。
+- **代码简洁**：直接传递构造参数，简化代码结构。
+
+在实现线程池时，使用 `emplace_back` 可以更高效地管理线程对象，提升性能并保持代码简洁。
+
+*****************************************
+
+**其次,不难发现,emplace_back()的参数是一个lambda表达式,这是因为:**
+
+`std::thread` 是一个线程类，它的构造函数可以接受一个可调用对象（callable object）作为参数。
+
+##### `std::thread` 的构造函数
+
+`std::thread` 的构造函数可以接受一个可调用对象，并在线程开始时执行它。例如：
+
+```cpp
+std::thread t([]{ std::cout << "Hello, world!" << std::endl; });
+```
+
+这个构造函数将会创建一个新线程，并执行传递的 lambda 表达式中的代码。
+
+`emplace_back` 的参数是一个 lambda 表达式，它被传递给 `std::thread` 的构造函数，从而在 `workers` 向量的末尾构造一个新的 `std::thread` 对象。**这个新创建的线程将会执行 lambda 表达式中的代码。**
+
+##### 为什么这样设计
+
+这种设计的好处是简洁且高效。通过 lambda 表达式，可以直接在 `emplace_back` 调用中定义线程的行为，而无需单独定义一个函数或仿函数类。这种方式使代码更简洁明了，并且能够直接访问线程池对象的成员变量和成员函数。
+
+#### 分析单个线程的执行过程
+
+```cpp
+while(true) {
+    ----------------------------------------------------------
+                    function<void()> task;
+                    {
+                        //  创建互斥锁以保护任务队列
+                        unique_lock<mutex> lock(this->queue_mutex);
+                        //  使用条件变量等待任务或停止信号
+                        this->condition.wait(lock,[this]{return this->stop || !this->tasks.empty();});
+                        //当前线程或者但任务队列为空时,线程才休眠释放锁,不占用cpu资源 
+                        //  如果线程池停止或任务队列为空，则线程退出
+                        if(this->stop && !this->tasks.empty()) return ;
+                        //  否走就正常获取下一个要执行的任务
+                        task = move(this->tasks.front());
+                        this->tasks.pop();
+                    }
+    //因为ThreadPool的tasks是共享队列,因此是临界资源因此要加锁
+	----------------------------------------------------------
+                    //  执行任务
+                    task();
+                }
+```
+
+### 分布式服务器：异步处理与缓存机制详细教程
+
+#### `async`
+
+> 函数签名
+
+````cpp
+template< class Function, class... Args >
+std::future< typename std::result_of<Function(Args...)>::type >
+async( std::launch policy, Function&& f, Args&&... args );
+//参数:
+一个可选的标志，用于指定任务的启动策略（std::launch）。
+一个可调用对象（如函数指针、函数对象或lambda表达式）。
+可调用对象的参数。
+
+//返回类型
+返回一个future对象
+可能是future<int> 可能是future<string>...
+````
+
+> 使用async启动一个异步任务
+
+```cpp
+auto future = async(launch::async,[](){
+    return "Hello from async!" ; 
+});
+
+//此时我们的策略是launch::async -- 立即启动一个新线程
+可调用对象是一个lambda表达式,没有参数
+    
+    
+//策略还可以是launch::deferred:延迟执行任务,直到第一次通过future.get()或future.wait()显式请求结果
+```
+
+> 获取异步结果--future的get方法
+
+```cpp
+string result = future.get();
+cout<<result<<endl; 	//输出-->"Hello from async!"
+```
+
+如果异步操作尚未完成,则调用`future.get()`会阻塞当前线程,直到读取到异步结果
+
+#### future
+
+- **任务状态查询**
+
+  future提供了**对异步任务的状态查询能力**,能够有效的知晓任务是否已完成或仍在执行中
+
+- **结果获取**
+
+  当异步操作完成后,可以通过`get()`方法获取异步处理的结果,**若没准备好则会阻塞**
+
+- **异常处理**
+
+  倘若在异步处理过程中发生异常,**future会将异常捕获,并在调用`get()`时重现该异常**
+
+#### 异步操作应用场景
+
+- **Web服务器**
+
+  在Web服务器中,async能处理并发的客户端请求,每个请求能在独立的线程中异步处理,提升整体吞吐量
+
+- **数据库操作**
+
+  数据库读写操作经常是系统中延迟的瓶颈,通过异步化可以减少等待时间,加快数据处理流程
+
+- **长时间运算**
+
+  对于计算密集型任务,async可以放置后台执行,同时释放前端线程与处理其他的用户交互
+
+ 
+
+**但本项目为什么没有使用异步操作?**
+
+因为本项目只有简单的注册登录操作,这种操作简单,如果在有大量请求访问的情况下,异步操作因为操作简单会大量的创建线程然后销毁线程,这样开销也很大,因此就不用异步操作
+
+## V6_demo
+
+### 模块化
+
+这个版本主要把冗杂的main.cpp给分离成不同的功能，将功能模块化来减少后期维护和再开发的成本,同时简化main.cpp
+
+首先搞清楚整个服务器的工程结构
+
+> tree
+
+```bash
+.
+├── build
+├── CMakeLists.txt
+├── Database.hpp			-- 1
+├── HttpRequest.hpp			-- 2
+├── HttpResponse.hpp		-- 3 
+├── HttpServer.hpp			-- 4
+├── Logger.hpp				-- 5
+├── main.cpp				-- 6 
+├── Router.hpp				-- 7
+├── static_rc
+│   ├── index.html
+│   ├── login.html
+│   └── register.html
+└── ThreadPool.hpp			-- 8
+```
+#### **`HttpRequest`类**
+
+此类负责解析客户端的请求,提取出方法,路径,以及表单数据等信息
+
+```cpp
+#pragma once
+//  该类解析来自客户端的请求，提取出关键信息，例如  请求方法   ，路径，以及 提交的数据  等
+#include <string>
+#include <iostream>
+#include <unordered_map>
+#include <sstream>
+#include "Router.hpp"
+#include "HttpResponse.hpp"
+#include "Logger.hpp"
+using namespace std;
+
+
+class HttpRequest {
+public:
+    enum Method {
+        GET, POST, HEAD, PUT, DELETE, OPTIONS, CONNECT, PATCH,UNKNOW
+    };
+    enum ParseState {
+        REQUEST_LINE, HEADERS, BODY,FINISH
+    };
+    
+    HttpRequest(): method(UNKNOW),state(REQUEST_LINE){}
+    
+    //  一个POST请求示例
+    /*
+    POST /login HTTP/1.1                                -- parseRequestLine(line)
+    HOST: localhost:8080                                -- parseHeader(line)    
+    Content-Type: application/x-www-form-urlencoded     -- parseHeader(line)
+    Content-Length: 30                                  -- parseHeader(line)
+
+    username=yuanshen&password=test1
+    */
+	//	除了第一行是用空格来分割,请求头后面的部分都是": "来分割的形式
+
+    //  传入读到的缓冲区的数据--buffer，并将其解析
+    bool parse(const string& request) {
+        istringstream iss(request);
+        string line;
+        bool result = true;
+
+        //  按行读取请求，并根据当前解析状态处理
+        //  循环条件 -- 首先能有line 然后line不是换行符
+        while(getline(iss,line) && line != "\r") {
+            if(state == REQUEST_LINE) {
+                result = parseRequestLine(line);    //  解析请求行
+            } else if (state == HEADERS) {
+                result = parseHeader(line); //  解析请求头
+            }
+            if (!result) {
+                break;  //  如果解析失败则跳出循环
+            }
+        }
+
+        //  如果请求方法是POST，则提取请求体
+        if (method == POST) {
+            body = request.substr(request.find("\r\n\r\n") + 4);
+        }
+
+        return result;  //  返回解析结果
+    }
+
+    //  从请求体中解析用户名和密码      解析用户传来的表单
+    unordered_map<string,string> parseFromBody() const {
+        unordered_map<string,string> params;
+        if(method != POST) return params;   
+
+        istringstream stream(body);
+        string pair;
+
+        while(getline(stream,pair,'&')) {
+            string::size_type pos = pair.find('=');
+            if (pos != string::npos) {
+                string key = pair.substr(0,pos);
+                string value = pair.substr(pos+1);
+                params[key] = value;
+                LOG_INFO("Parsed key-value pair: %s = %s",key.c_str(),value.c_str());
+            } else {
+                //  错误处理 找不到"="分隔符
+                string error_msg = "Error parsing: "+pair;
+                LOG_ERROR(error_msg.c_str());   //  记录错误信息
+                cerr << error_msg <<endl;
+            }
+        }
+        return params;
+    }   
+
+    //	以下的两个函数我只希望返回值不希望改变任何的对象,因此用const放末尾来修饰
+    	
+    //  获取Http请求方法的字符串表示
+    string getMethodString() const {
+        switch(method) {
+        case GET:   return "GET";
+        case POST:  return "POST";
+        //  之后添加其他的方法
+        //  ...
+        default:    return "UNKNOW";
+        }
+    }
+	/*
+	在函数声明的末尾使用 const，表示该函数是一个常量成员函数（const member function）。这种函数不能修改类的任何成员变量，也不能调用非 const 成员函数。它可以提高代码的安全性，因为它保证了该函数不会改变对象的状态。
+	*/
+    
+    //  获取请求路径的函数
+    const string& getPath() const {
+        return this->url;
+    }
+
+    //  其他成员函数和变量
+    //  ...
+
+private:
+    //	以下两个函数是通过公共成员函数在函数内调用的,因此写在私有中
+    
+    bool parseRequestLine(const string line) {
+        istringstream iss(line);
+        string method_str;
+        
+        /*
+        POST /login HTTP/1.1                                -- parseRequestLine(line)
+        */
+        //	对于流对象而言，>> 是用来提取字段的(也就是被空格包裹的字符串) 每提取一次,指针都会向后移动
+        
+        iss >> method_str;	//	此时就是将第一个字段POST放进了method_str中然后指针向后移动
+        if(method_str == "GET") method = GET;
+        else if(method_str == "POST")  method = POST;
+        else method = UNKNOW;
+		
+        //	此时就是将/login放进了url中然后指针向后移动
+        iss >> url;         //  解析请求路径
+        //	此时就是将HTTP/1.1放进了version中然后指针向后移动
+        iss >> version;     //  解析Http协议版本
+        state = HEADERS;    //  更新状态码为解析请求头
+        return true;
+    }
+
+
+    //  解析请求头的函数
+    bool parseHeader(const string& line) {
+        size_t pos = line.find(": ");
+        if (pos == string::npos) {
+            return false;   //  请求头格式错误
+        }
+        string key = line.substr(0,pos);
+        string value = line.substr(pos + 1);
+        headers[key] = value;   //  存储键值对到headers字典里
+        return true;        
+    }
+
+
+    Method method;  //  请求方法
+    string url;     //  请求路径
+    string version; //  Http协议版本
+    string body;    //  请求体
+    ParseState state;      //  请求解析状态
+    unordered_map<string,string> headers;   //  请求头
+
+};
+```
+
+#### **`HttpResponse`类**
+
+用于构建服务器的响应,包括状态码,响应头,响应体等信息
+
+```cpp
+#pragma once
+//  该类构建要发回给客户端的响应，包括状态码，响应头，响应体等
+#include <string>
+#include <sstream>
+#include <unordered_map>
+using namespace std;
+
+class HttpResponse {
+public:
+
+    HttpResponse(int code = 200): statusCode(code) {}
+
+    //  设置状态码
+    void setStatusCode(int& code) {
+        this->statusCode = code;
+    }
+
+    //  设置响应体
+    void setBody(const string& body) {
+        this->body = body;
+    }
+
+    //  设置响应头
+    void setHeader(const string& name,const string& value) {
+        headers[name] = value;
+    }
+
+    //  一个响应数据的例子
+    /*
+        HTTP/1.1 200 OK
+        Content-Type: text/html
+        Content-Length: 137
+
+        <html>
+        <head>
+            <title>Sample Page</title>
+        </head>
+        <body>
+            <h1>Sample HTTP Response</h1>
+            <p>This is a sample response body.</p>
+        </body>
+        </html>
+    */
+
+
+    //  将响应转换成响应信息结构的字符串，按如上的格式拼接
+    string toString() const {
+        ostringstream oss;
+        //  添加Http头信息：版本协议 状态码 状态消息
+        oss << "HTTP/1.1 " << statusCode << " " << getStatusMessage() << "\r\n";
+        //  添加其他响应头
+        for(const auto& header : headers) {
+            oss << header.first << ": " << header.second << "\r\n";
+        }
+
+        //	手动添加实体头部
+        oss << "Content-Length: " << body.size() << "\r\n";
+        
+        //  添加空分行间隔响应头和响应体
+        oss << "\r\n" <<body;
+        return oss.str();
+    }
+    // -------------------------------------------------------------
+
+
+    //  生成错误请求
+    static HttpResponse makeErrorResponse(int code,const string& error) {
+        HttpResponse response(code);
+        response.setBody(error);
+        return response;
+    }
+    
+    //  生成正确请求
+    static HttpResponse makeOKResponse(const string sta) {
+
+    }
+
+
+private:
+    
+    //	简单的转换器,枚举类型转换成字符串
+    //  获取状态信息(根据状态码)
+    string getStatusMessage() const {
+        switch(statusCode) {
+        case 200: return "OK";  //  请求成功，一切正常
+        case 404: return "Not Found";   //  找不到请求的资源
+        case 302: return "Moved Permanently";   //资源临时重定向
+        case 400: return "Bad Request"; //  客户端请求无法解析或有语法试错法
+        case 204: return "Unauthorized";    //  未授权，需要有效的身份凭证
+        default: return "Unknown";  //  默认是未知
+        }
+    }
+    
+    int statusCode;    //  状态码
+    string body;    //  响应体
+    unordered_map<string,string> headers;  //  响应头信息
+
+};
+
+/*	
+	unordered_map：
+    使用哈希表实现，没有固定的顺序，插入和查找的时间复杂度平均为 O(1)。
+    对于需要快速插入和查找的场景，特别是当不需要保持顺序时，unordered_map 是一个不错的选择。
+    不会按照任何特定顺序迭代元素。
+    
+    map：
+    使用红黑树实现，元素按照键的大小顺序排列，默认升序。插入和查找的时间复杂度为 O(log n)。
+    当需要按照特定顺序（例如键的字典序）访问元素时，使用 map 更合适。
+    迭代元素按照键的升序顺序。
+    
+    在HTTP响应类中，通常头部字段的顺序对于HTTP协议来说并不是强制要求，因此如果只是存储键值对，并不需要按照特定顺序访问和迭代，使用 unordered_map 可以提供更好的插入和查找性能。这样可以在保持简单性的同时，有效地管理和处理多个头部字段。
+
+    如果需要确保头部字段按照特定顺序输出，可以在构造 toString 方法时，手动控制输出顺序，无论是使用 unordered_map 还是 map 都可以实现。
+*/
+```
+
+#### **`Router`类**
+
+根据请求的路径和方法,决定有哪个处理函数来执行请求的具体逻辑
+
+```cpp
+//  该类主要根据请求的路径和方法，决定调用哪个处理函数，实现请求的具体逻辑
+#pragma once
+#include <functional>
+#include <string>
+#include <map>
+#include <unordered_map>
+#include "Database.hpp"
+#include "HttpRequest.hpp"
+#include "HttpResponse.hpp"
+using namespace std;
+
+
+class Router {
+
+public:
+    
+    //  定义处理函数的类型
+    using RequestHandler = std::function<HttpResponse(const HttpRequest&)>;
+
+
+    //  添加路由，将    "method|url"    的组合当作routes的key
+    void addRoute(string method,string url,RequestHandler func) {
+        //  判断方法类型，给对应的方法加上处理函数
+        routes[method + "|" + url] = func;
+        //  ...more methods
+    }
+    
+
+    
+    //  设置数据库有关的路由
+    void setupDatabaseRoutes(Database& db) {
+
+        //  GET登录和注册 -- 获取静态资源           但实际上对于get请求的处理函数不传request也没事，因为没用到
+        addRoute("GET","/login",[this](HttpRequest request) {
+            HttpResponse response;
+            response.setStatusCode(200);
+            response.setHeader("Content-Type","text/html");
+            response.setBody(readfile("../static_re/login.html")); //  读取html文件
+            return response;
+        });
+        addRoute("GET","/register",[this](HttpRequest request) {
+            HttpResponse response;
+            response.setStatusCode(200);
+            response.setHeader("Content-Type","text/html");
+            response.setBody(readfile("../static_re/register.html")); //  读取html文件
+            return response;
+        });
+        
+
+
+        //  POST登录和注册 -- 获取表单数据
+        addRoute("POST","/register" ,[&db,this](HttpRequest request) {
+            HttpResponse response;
+
+            //  类型都是html因此写在前面
+            response.setHeader("Content-Type","text/html");
+
+            //  根据注册结果返回不一样的html
+            auto parm = request.parseFromBody();
+            string username = parm["username"];
+            string password = parm["password"];
+            //  调用db的方法进行注册
+            if(db.registerUser(username,password)) {
+                response.setStatusCode(302);    //  302 -- 重定向
+                response.setHeader("Location","/login");    //  重定向到登录界面
+                return response;
+            } else {
+                return HttpResponse::makeErrorResponse(400,"Register Failed");
+            }
+        });
+        addRoute("POST","/login" ,[&db](HttpRequest request) {
+            HttpResponse response;
+            response.setHeader("Content-Type","text/html");
+
+            //  根据登录结果返回不一样的html
+
+            //  通过request获取密码和账号的数据
+            auto parm = request.parseFromBody();
+            string username = parm["username"];
+            string password = parm["password"];
+
+            //  调用db的方法进行登录
+            if(db.loginUser(username,password)) {
+                response.setStatusCode(200);
+                response.setBody("<html><body><h2>Login Successed</h2></body></html>");
+                return response;
+            } else {
+                response.setStatusCode(401);    //  401--未授权 Unauthorized
+                response.setBody("<html><body><h2>Login Failed</h2></body></html>");
+                return response;
+            }
+        });
+    }
+
+    //  通过传进来的request来分配处理函数		相当于之前的requestHandler
+    HttpResponse routeRequest(HttpRequest& request) {
+        string key = request.getMethodString() + "|" + request.getPath();
+        //  判断是否有相应的路由
+        if(routes.count(key) > 0) {
+            return routes[key](request);
+        }
+        
+        //  如果没有找到对应的路由那就404
+        return HttpResponse::makeErrorResponse(404,"Not Found");
+    } 
+
+private:
+    string readfile(string file_path) {
+        ifstream ifs;
+        ifs.open(file_path,ios::binary | ios::in);
+        if(!ifs.is_open()) {
+            return nullptr;
+        }
+
+        //  得到buf
+        //  获取文件长度
+        //  seekg(0,ios::end) 表示将文件指针自end位置偏移0字节--也就是置于文件尾
+        ifs.seekg(0,ios::end);
+        //  tellg() 表示从文件指针的位置到文件头位置的字节数
+        size_t length = ifs.tellg();
+        //  再将文件指针复位至文件开头以正常操作文件
+        ifs.seekg(0,ios::beg);
+
+        char buf[length];
+        ifs.read(buf,length);
+        return string(buf); 
+    }
+
+    unordered_map<string,RequestHandler> routes;    //  存储路由映射
+
+};
+```
+
+#### **`HttpServer`类**
+
+```cpp
+//  该文件--服务器的框架
+#pragma once
+
+#include <arpa/inet.h>     
+#include <sys/socket.h>          
+#include <sys/epoll.h>      //  引入epoll
+#include <fcntl.h>          //  进行非阻塞模式设置
+#include <unistd.h>         //  IO函数
+
+#include "Database.hpp"     //  引入数据库
+#include "Logger.hpp"       //  引入日志
+#include "ThreadPool.hpp"   //  引入线程池
+#include "Router.hpp"       //  引入路由
+#include "HttpResponse.hpp" //  引入响应
+
+#define PORT 8080           //  定义端口
+#define EPOLL_SIZE 50       //  定义监听最大的数量
+#define BUF_SIZE 4096       //  定义缓冲区大小
+
+
+class HttpServer {
+public:
+    //  构造函数，初始化成员变量并传入参数（端口号，epoll的最大监听事件，以及数据库的使用）
+    HttpServer(int port,int max_events,Database& db)
+    :port(port),max_events(max_events),db(db),server_fd(-1),epoll_fd(-1){}
+
+    //  启动服务器，设置套接字，epoll，启动线程池并进入主循环
+    void start() {
+        setupServerSocket();    //  创建并配置服务器套接字
+        setupEpoll();           //  创建epoll实例
+        ThreadPool pool(16);    //  创建线程池
+
+        //  初始化epoll_event数组
+        auto events = new epoll_event[max_events];
+
+        //  主循环
+        while(1) {
+            int nfds = epoll_wait(epoll_fd,events,max_events,-1);   //  开始监听
+            //  轮询事件
+            for(int i = 0;i < nfds;++i) {
+                if(events[i].data.fd == this->server_fd) {
+                    acceptConnection();
+                } else {
+                    int fd = events[i].data.fd;
+                    pool.enqueue([fd,this]{
+                        this->handleConnection(fd);
+                    });
+                }
+            }
+        }
+        delete[] events;
+    }
+
+     //  初始化路由
+    void setupRoutes() {
+        this->router.addRoute("GET","/",[this](const HttpRequest& req){ 
+            //  添加根路由处理器，返回"Hello World"响应
+            HttpResponse response;
+            response.setBody("Hello World");
+            response.setStatusCode(200);
+            return response;
+        });
+
+        //  设置与数据库有关的路由
+        router.setupDatabaseRoutes(this->db);
+        //  其他路由在这里添加...
+    }
+
+
+    
+     
+    //  析构，释放资源关闭连接
+    ~HttpServer() {
+        close(server_fd);
+        close(epoll_fd);
+    }   
+
+
+private:
+
+    int server_fd;  //  服务器的监听socket
+    int port;       //  服务器使用的端口
+    int max_events; //  能够监听的最多的端口数
+    int epoll_fd;   //  epoll实例的文件描述符
+       //  epoll实例的文件描述符
+
+    Database& db;    //  数据库    
+
+    Router router;  //  路由器处理路由分发
+
+
+     //  初始化服务器
+    void setupServerSocket() {
+        
+        struct sockaddr_in serveraddr;
+        socklen_t socklen = sizeof(struct sockaddr_in);
+        
+        this->server_fd = socket(AF_INET,SOCK_STREAM,0);
+        if(this->server_fd == -1) {
+            LOG_INFO("socket failed");
+            exit(EXIT_FAILURE);
+        }
+        setNonBlocking(this->server_fd);
+        LOG_INFO("socket created");
+
+        serveraddr.sin_family = AF_INET;
+        serveraddr.sin_port = htons(PORT);
+        serveraddr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+        if(bind(server_fd,(struct sockaddr*)&serveraddr,socklen) == -1) {
+            LOG_INFO("bind failed");
+            exit(EXIT_FAILURE);
+        }
+
+        if(listen(server_fd,5) == -1) {
+            LOG_INFO("listen failed");
+            exit(EXIT_FAILURE);
+        }
+        LOG_INFO("Server listening on port %d",PORT);   //记录服务器监听
+
+        //  初始化路由
+        this->setupRoutes();
+
+    }
+
+    
+    //  创建epoll实例
+    void setupEpoll() {
+        epoll_fd = epoll_create(EPOLL_SIZE);
+        //  将监听socket先注册进去
+        struct epoll_event event;
+        event.data.fd = this->server_fd;
+        event.events = EPOLLIN | EPOLLET;
+        if(epoll_ctl(this->epoll_fd,EPOLL_CTL_ADD,this->server_fd,&event) == -1) {
+            LOG_ERROR("epoll_ctl: server_fd");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    //  接收新的连接
+    void acceptConnection() {
+        struct sockaddr_in clntaddr;
+        socklen_t socklen = sizeof(clntaddr);
+        int clnt_fd;
+        while((clnt_fd = accept(this->server_fd,(struct sockaddr*)&clntaddr,&socklen)) > 0 ) {
+            setNonBlocking(clnt_fd);
+            //  将其注册到epoll_events中
+            struct epoll_event event;
+            event.data.fd = clnt_fd;
+            event.events = EPOLLIN | EPOLLET;
+            if(epoll_ctl(this->epoll_fd,EPOLL_CTL_ADD,clnt_fd,&event) == -1) {
+                LOG_ERROR("Error adding new socket on epoll");
+                close(clnt_fd);
+                exit(EXIT_FAILURE);
+            } else {
+                LOG_INFO("New connection accepted");
+            }
+        }
+
+        //  如果accept失败且错误原因不是EAGAIN或EWOULDBLOCK，那就说明有错误，则报错
+        if(clnt_fd == -1 && (errno != EAGAIN || errno != EWOULDBLOCK)) {
+            LOG_ERROR("Error adding new socket on epoll");
+        }
+    }
+
+    //  处理新的事件
+    void handleConnection(int fd) {
+        char buf[BUF_SIZE];
+        string tmp;
+        HttpRequest request;
+        while(1) {
+            ssize_t strlen = read(fd,buf,BUF_SIZE - 1);
+            if(strlen == -1) {
+                if(errno == EAGAIN || errno == EWOULDBLOCK) {
+                    //  此时就是没数据可读了
+                    break;
+                } else {
+                    //  此时才是真正出错了
+                    LOG_INFO("read error");
+                    close(fd);
+                    exit(EXIT_FAILURE);
+                }
+            } else if(strlen == 0) {
+                LOG_INFO("disConnecting");
+                break;
+            } else {
+                buf[strlen] = '\0';
+                tmp += buf;
+            }  
+        }
+        //  此时读完了输入缓冲区的数据
+        //  解析Request数据并通过Rouer获得HttpResponse对象
+        if(request.parse(tmp)) {
+            HttpResponse  response = router.routeRequest(request);
+            string response_str = response.toString();
+            send(fd,response_str.c_str(),sizeof(response_str),0);
+        }
+
+        //  关闭socket
+        close(fd);
+    }
+
+
+    //  设置为非阻塞模式
+    void setNonBlocking(int fd) {
+
+        int flag = fcntl(fd,F_GETFL);
+        flag |= O_NONBLOCK;
+        fcntl(fd,F_SETFL,flag);
+    }
+
+
+};
+```
+
+#### `main.cpp`
+
+配置端口号 -> 设置数据库 -> 配置服务器对象 -> 设置路由 -> 开启服务器
+
+```cpp
+#include "HttpServer.hpp"
+#include "Database.hpp"
+
+int main(int argc,char* argv[] ) {
+    int port = 8080;
+    if(argc > 1) {
+        port = stoi(argv[1]);
+    }
+    Database db("user.db");
+    HttpServer server(port,10,db);
+    server.setupRoutes();
+    server.start();
+    return 0;
+}
+```
+
+Logger\Databash\ThreadPool和之前的一样
+
+==状态码==
+
+**登录失败：**
+
+- **401 Unauthorized**: 表示请求需要用户验证。通常用于未提供身份验证凭据或者凭据无效。
+- **403 Forbidden**: 表示服务器已经理解请求，但是拒绝执行它。通常用于权限不足的情况。
+
+**注册失败：**
+
+- **400 Bad Request**: 表示客户端发送的请求有错误，通常用于请求格式错误或缺少必要参数。
+- **409 Conflict**: 表示请求与服务器当前的状态冲突。通常用于注册时用户已存在的情况。
+
+
+
+
+
+
+
+
+
+
+
+### 前后端联动机制
+
+![未命名绘图.drawio](F:\project\http_WebServer\image\未命名绘图.drawio.png)
+
