@@ -6,3 +6,6 @@
 
 #	readme的图片素材
 *.png
+
+#	onenote笔记
+*.onepkg

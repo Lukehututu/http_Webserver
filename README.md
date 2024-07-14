@@ -2489,6 +2489,257 @@ Logger\Databash\ThreadPool和之前的一样
 
 ![未命名绘图.drawio](F:\project\http_WebServer\image\未命名绘图.drawio-1720856780523-8.png)
 
+## V7_Nginx
+
+### 分布式服务器
+
+#### Nginx
+
+**Nginx作为反向代理的流程**
+
+1. **客户端请求**
+
+   请求首先到达Nginx
+
+2. **接收请求**
+
+   Nginx作为反向代理接收Http请求
+
+3. **请求转发**
+
+   Nginx根据配置转发到后端服务器
+
+   ![Nginx](F:\project\http_WebServer\image\Nginx.png)
+
+Nginx本身也是一个事件驱动模型
+
+##### 负载均衡策略与Nginx实现
+
+| 方法           | 实现                           |
+| :------------- | ------------------------------ |
+| 轮询           | 请求依次分配给每个服务器       |
+| 加权轮询       | 依权重分配请求量               |
+| 最少连接数     | 新请求到当前连接数最少的服务器 |
+| 权重最少连接数 | 综合权重考虑服务器连接数       |
+| 源地址哈希     | 根据请求源IP分配服务器         |
+
+- **加权轮询**
+  - 在轮询的基础上,给每个服务器设置一个权重.服务器接受的请求数量按照其权重比例分配
+  - **优点:** 可以根据服务器的性能和处理能力调整权重,实现更合理的负载均衡
+  - **缺点:** 权重设置需要根据服务器性能手动调配
+
+```nginx
+upstream myapp {
+    server server1.example.com weight=3;
+    server server2.example.com weight=2;
+    server server3.example.com weight=1;
+}
+```
+
+- **最少连接**
+  - 新的请求会被分配给当前连接数最少的服务器
+  - **优点:** 能较好地应对不同负载的情况,合理分配请求
+  - **缺点:** 在高并发情况下,统计和更新连接数可能成为新的性能瓶颈
+
+```nginx
+upstream myapp {
+    least_conn;
+    server server1.example.com;
+    server server2.example.com;
+    server server3.example.com;
+}
+```
+
+- **加权最少连接**
+  - 在最少链接的算法基础上,考虑服务器的权重,权重越高的服务器可以承担更多的连接
+  - **优点:** 相比最少链接法,能够考虑到服务器的性能
+  - **缺点:** 算法相对复杂,需要维护更多的状态信息
+
+```nginx
+upstream myapp {
+    least_conn;	?????????????????????????
+    server server1.example.com;
+    server server2.example.com;
+    server server3.example.com;
+}
+```
+
+- **基于源地址哈希**
+  - 根据请求的源IP地址进行哈希,然后根据哈希结果分配给特定的服务器
+  - **优点:** 保证来自同一源地址的请求总是被分配到同一服务器,有利于会话保持
+  - **缺点:** 当服务器数量变化时,分配模式就会发生变化,可能会打乱原有的分配规则
+
+```nginx
+upstream myapp {
+    ip_hash;
+    server server1.example.com;
+    server server2.example.com;
+    server server3.example.com;
+}
+```
+
+#####  Nginx缓存
+
+​		缓存可以提高网站性能,减轻服务器负载.通过在响应请求("GET")时将数据缓存在内存中,可以减少对后端服务器的请求次数,提高用户的访问速度.可以通过在`nginx.conf`中配置`proxy_cache`指令来设置缓存的规则,包括**缓存的有效期,缓存文件路径**等.
+
+##### 为什么本项目中只处理`GET`请求,不处理`POST`请求?
+
+​		首先,因为`Nginx`实际上是==基于识别的请求头==来处理缓存和返回内容的,因此当传来一个`POST`请求时,例如用户注册一个账号,如果处理`POST`请求,他会先将用户数据发给服务器,服务器再发给DB,检查数据合法性然后存进DB里,若是注册成功就返回一个成功,服务器再将成功返回给`Nginx`,`Nginx`再将注册成功的消息传给用户,同时将成功这条信息缓存,当下次再有别的用户发送`POST`请求时,`Nginx`识别到是`POST`就直接返回缓存中的成功请求了,因此就出错了.
+
+#### 配置nginx
+
+##### `nginx.conf`
+
+```nginx
+#	1.***************************************
+user root;
+#	2.***************************************
+events {
+    worker_connections 1024; #   指定每个worker进程可以建立的最大连接数为1024
+}
+
+http {
+    #   配置代理缓存路径和规则
+    proxy_cache_path /var/cache/nginx levels=1:2 keys_zone=my_cache:10m max_size=10g inactive=60m use_temp_path=off;
+    #   /var/cache/nginx    缓存存储的路径
+    #   levels=1:2  缓存文件的目录层级
+    #   keys_zone=my+cache:10m  缓存键区域名为 my_cache 大小为10MB
+    #   max_size=10g    最大缓存大小为10GB
+    #   inactive=60m    在60分钟内未被访问的缓存会被清除
+    #   use_temp_path=off   不使用临时路径存储缓存数据
+
+    #   定义一个名为myapp的upstream，用于负载均衡
+    upstream myapp {
+        #   分别是  地址    和    权重
+        server localhost:8080 weight=3;     
+        server localhost:8081 weight=2;
+        server localhost:8082 weight=1;
+    }
+
+    #   server块定义了一个服务
+    server {
+        #   监听80窗口
+        listen 80;  
+
+        #   相对路径的配置
+        location / {
+            #   将请求转发到名为myapp的upstream
+            proxy_pass http://myapp;    
+            #   设置http头部，用于将客户端的相关信息转发给服务器
+            proxy_set_header Host $host;    #   传递原始请求的HOST头部
+            proxy_set_header X-Real-IP $remote_addr;    #   传递客户端的真实IP
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;    #   传递X-Forwarded-For头部
+            proxy_set_header X-Forwarded-Proto $scheme;    #   传递原始请求使用的协议
+        }
+
+        #   /login 和 /register的   GET    请求配置
+        location ~ ^/(login|register)$ {
+            #	3.***************************************
+            proxy_cache my_cache;   #   使用名为 my_cache 的缓存区
+            proxy_cache_valid 200 302 10m;  #   对于状态为 200 和 302 的响应,缓存有效期为 10m
+            #   设置通用的HTTP头部信息
+            proxy_set_header Host $host; 
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            #   所有除了POST之外的所有请求
+            limit_except POST {
+                proxy_pass http://myapp;    #   对于    GET 请求,转发到myapp
+            }
+        }
+
+        #   /login 和 /register的   POST    请求配置
+        location ~ ^/(login|register)$ {
+            proxy_pass http://myapp;
+            #   设置通用的HTTP头部信息
+            proxy_set_header Host $host; 
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+}
+```
+
+- `server`块定义了如何处理到来的客户端的请求,在`location`中,我们使用`proxy_pass`指令将请求转发到定义的上游服务器组
+- `proxy_set header X-Forwarded-For $proxy_add_x_forwarded_for;`添加一个`X-Forwarded-For`头部,记录仪客户端请求经过的所有代理服务器的IP地址,`$proxy_add_x_forwarded_for`这个变量就会自动添加当前Nginx服务器的IP地址
+- `proxy_set header X-Forwarded-Proto $scheme`传递原始请求使用的协议类型(http或https)给后续服务器,这对于后续服务器判断请求是否通过HTTPS加密非常重要
+
+#### 出错的地方
+
+1. 当用原来的Nginx服务时会发现
+
+   ```bash
+   [root@localhost http_WebServer]# ps aux | grep nginx
+   root        3738  0.0  0.0  54952   876 ?        Ss   21:59   0:00 nginx: master process /usr/sbin/nginx
+   nginx        3739  0.0  0.3  87672  6072 ?        S    21:59   0:00 nginx: worker process
+   root        3740  0.0  0.2  87360  4912 ?        S    21:59   0:00 nginx: cache manager process
+   ```
+
+   此时直接访问`localhost:80`会没反应,查看nginx的错误日志(`/var/log/nginx/error.log`)可以发现:
+
+   ```
+   2024/07/14 21:26:41 [crit] 61103#0: *1 connect() to 127.0.0.1:8080 failed (13: Permission denied) while connecting to upstream, client: 127.0.0.1, server: , request: "GET / HTTP/1.1", upstream: "http://127.0.0.1:8080/", host: "localhost"
+   2024/07/14 21:26:41 [crit] 61103#0: *1 connect() to [::1]:8080 failed (13: Permission denied) while connecting to upstream, client: 127.0.0.1, server: , request: "GET / HTTP/1.1", upstream: "http://[::1]:8080/", host: "localhost"
+   2024/07/14 21:26:41 [crit] 61103#0: *1 connect() to 127.0.0.1:8081 failed (13: Permission denied) while connecting to upstream, client: 127.0.0.1, server: , request: "GET / HTTP/1.1", upstream: "http://127.0.0.1:8081/", host: "localhost"
+   2024/07/14 21:26:41 [crit] 61103#0: *1 connect() to [::1]:8081 failed (13: Permission denied) while connecting to upstream, client: 127.0.0.1, server: , request: "GET / HTTP/1.1", upstream: "http://[::1]:8081/", host: "localhost"
+   2024/07/14 21:26:41 [crit] 61103#0: *1 connect() to 127.0.0.1:8082 failed (13: Permission denied) while connecting to upstream, client: 127.0.0.1, server: , request: "GET / HTTP/1.1", upstream: "http://127.0.0.1:8082/", host: "localhost"
+   2024/07/14 21:26:41 [crit] 61103#0: *1 connect() to [::1]:8082 failed (13: Permission denied) while connecting to upstream, client: 127.0.0.1, server: , request: "GET / HTTP/1.1", upstream: "http://[::1]:8082/", host: "localhost"
+   ```
+
+   三次请求连接服务器都有问题,都提示`connect() to 127.0.0.1:8080 failed (13: Permission denied) while connecting to upstream`权限不够,此时一般有两种情况
+
+   1. **访问的用户是`nginx`,无权限访问相应端口.**
+      - 解决方法: 在`nginx.conf`最开始指定用户为`user root; `
+   2. **linux自带的`SE Linux`(`Security-Enhanced Linux`)是Linux的一个内核模块,是一个安全子系统**
+      - 解决方法: 关闭SE Linux
+
+2. **vscode要自己配置转发端口,把端口打开**
+
+   ![1720966533161](C:\Users\Luk1\Documents\WeChat Files\wxid_xyxyea2y6zxn12\FileStorage\Temp\1720966533161.png)
+
+##### 配置`CMakeList.txt`
+
+```cmake
+cmake_minimum_required(VERSION 3.10)
+project(MyServerProject)
+
+# 设置 C++ 标准
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+# 设置app输出路径
+set(HOME /home/luk1/code/http_WebServer/v7_nginx)   # 定义home路径
+set(EXECUTABLE_OUTPUT_PATH ${HOME}/app) # 指定输出路径
+
+-------------------------------------------------------------------------------------------------------------------
+#   指定配置文件
+set(NGINX_CONF "nginx.conf")
+#   安装配置文件到目标位置
+install(FILES ${NGINX_CONF}
+        DESTINATION /etc/nginx
+        COMPONENT config_files)
+-------------------------------------------------------------------------------------------------------------------
+# 添加可执行文件
+add_executable(server main.cpp Database.hpp Logger.hpp ThreadPool.hpp HttpRequest.hpp HttpResponse.hpp HttpServer.hpp Router.hpp FileUtils.hpp)
+
+
+
+# 外部库链接（如果有其他库需求，可以在此处添加）
+target_link_libraries(server PRIVATE sqlite3 pthread)
+
+
+# 编译选项
+# 如果需要，可以添加其他编译选项
+# target_compile_options(server PRIVATE ...)
+
+# 如果需要链接其他库，可以使用 find_package 或 find_library 查找并链接它们
+
+
+```
+
+---
+
 ## 项目总结
 
 ### 基本架构
