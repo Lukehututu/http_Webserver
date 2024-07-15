@@ -1,5 +1,21 @@
 # http_Webserver
 
+## 项目概述
+
+![image-20240513111131005](C:\Users\Luk1\AppData\Roaming\Typora\typora-user-images\image-20240513111131005.png)
+
+![image-20240513111207447](C:\Users\Luk1\AppData\Roaming\Typora\typora-user-images\image-20240513111207447.png)
+
+![image-20240514145546381](C:\Users\Luk1\AppData\Roaming\Typora\typora-user-images\image-20240514145546381.png)
+
+## 基本的HTTP请求和处理
+
+![image-20240515085702284](C:\Users\Luk1\AppData\Roaming\Typora\typora-user-images\image-20240515085702284.png)
+
+![image-20240515093335027](C:\Users\Luk1\AppData\Roaming\Typora\typora-user-images\image-20240515093335027.png)
+
+![image-20240515093907388](C:\Users\Luk1\AppData\Roaming\Typora\typora-user-images\image-20240515093907388.png)
+
 ## V1
 
 ### 流程分析
@@ -1058,7 +1074,99 @@ void setupRoutes(){
 
 ```
 
+### SQL注入
+
+​		SQL注入是一种常见的网络安全攻击手段，他**利用Web应用程序对用户输入数据处理不严的漏洞**。当应用程序在构建动态SQL查询时直接拼接用户提供的数据，恶意用户可以通过**提交精心构造的输入来改变原SQL语句的逻辑**，从而**获取,修改或删除数据库中的信息.**
+
+#### 常见的SQL注入的手段
+
+![SQL注入的手段](C:\Users\Luk1\AppData\Roaming\Typora\typora-user-images\image-20240516142047527.png)
+
+#### SQL注入攻击类型
+
+- **子查询注入**
+
+  攻击者嵌入一个或多个额外的select子查询到原SQL语句的内部,以实现对数据库未经授权的读取或其他操作.
+
+- **布尔盲注**
+
+  攻击者发送构造好的SQL查询,通过观察应用程序的行为或相应内容,逐步推断数据库中的敏感信息
+
+- **时间延迟注入**
+
+  攻击者构造SQL查询,利用服务器响应的时间差异来间接推断数据库内的数据
+
+- **二次注入**
+
+  攻击者将含有恶意SQL指令的内容注入到数据库存储的部分,然后在应用程序进行查询时触发这些恶意代码
+
+#### 防御SQL注入方法
+
+- **预编译语句**
+
+  利用预编译语句与参数化查询防止SQL注入,能够确保将用户数据作为参数传入,防止被解释为SQL代码
+
+- **ORM框架**
+
+  通过ORM框架像Hibernate实现间接数据库操作,自动处理参数化查询
+
+- **输入验证**
+
+  进行严格的输入格式检查和类型校验,拒绝那些不符合预期格式的输入
+
+#### 其他方法
+
+- **最小权限原则**
+
+  应用程序连接数据库所使用的账户应当仅拥有完成当前任务所需的最小子集权限,比如只读访问特定表,而非整个数据库的所有权限.
+
+- **禁止直接拼接SQL**
+
+- **使用安全函数**
+
+  对于不支持预编译语句或参数化查询的老旧数据库接口,可使用数据库自身提供的安全函数对特殊字符进行转义以防止SQL注入
+
+项目中预防SQL注入的方法
+
+#### 预编译SQL语句(sqlite3_prepare_v2)
+
+**预编译SQL语句提高执行效率和增强安全性**
+
+- 使用`sqlite3_prepare_v2()`函数将SQL语句编译成预编译语句的对象
+- 预编译固定SQL语句结构,防止SQL注入攻击
+- 预编译过程类似于编译器处理源代码
+- 预编译语句不受用户输入特殊字符影响,避免执行意外命令
+
+#### 那如何绑定参数(sqlite3_bind_text)
+
+**参数绑定是预编译语句的一个重要环节**
+
+将值绑定到参数占位符上:
+
+- 在预编译的SQL语句中,通常使用`?`作为参数的占位符
+- `sqlite3_bind_text()`函数用于将实际的数据值绑定到这些占位符上
+- 绑定操作意味着指定的数据直接替换对应的占位符,但不会改变SQL语句的结构
+
+确保输入值的安全处理:
+
+- 通过参数绑定,即使用户输入包含潜在的危险字符,这些输入也只被视为字符串数据
+- 数据库引擎在执行SQL语句时,会把这些绑定的值视为普通数据,而不是SQL指令
+
 ## V4-epoll
+
+### 选用epoll的优势
+
+- **避免重复数据复制**
+
+  epoll笔迷拿了每次调用时将文件描述符集合从用户空间复制到内核空间的操作,这是select和poll的一个主要性能瓶颈
+
+- **高效的事件通知机制**
+
+  epoll只通知真正发生变化的事件,减少了无效检查和不必要的通知,提高了事件处理的效率
+
+- **大规模并发连接的管理**
+
+  得益于搞笑的数据结构(红黑树)和算法,epoll能够管理和处理数千甚至数万个并发网络连接,而不会遇到性能瓶颈非常适合构建高性能的网络服务器
 
 将原先的简单的server.cpp改造成epoll模型
 
@@ -1869,7 +1977,7 @@ public:
         istringstream stream(body);
         string pair;
 
-        while(getline(stream,pair,'&')) {
+        while(getline(steam,pair,'&')) {
             string::size_type pos = pair.find('=');
             if (pos != string::npos) {
                 string key = pair.substr(0,pos);
@@ -2739,6 +2847,219 @@ target_link_libraries(server PRIVATE sqlite3 pthread)
 ```
 
 ---
+
+## V8_MySQL
+
+在该版本中将`sqlite`改造成学习过的`MySQL`
+
+首先重新拿出来项目中跟DB交互的部分
+
+### 回顾
+
+> Database.hpp
+
+```cpp
+#pragma once
+#include <sqlite3.h>        //  数据库的头文件
+#include <string>
+#include <stdexcept>        //  错误管理的头文件
+
+#include "Logger.hpp"
+using namespace std;
+
+
+class Database {
+private:
+    sqlite3* db;
+
+public:
+    //  构造函数，用于打开数据库并创建用户表
+    Database(const string& db_path) {
+        //  使用sqlite3_open打开数据库
+        //  &db是指向数据库连接对象的指针
+        if(sqlite3_open(db_path.c_str(),&db) != SQLITE_OK) {
+            //  如果数据库打开失败，就抛出数据库运行时的错误
+            throw runtime_error("Failed to open database");
+        }
+
+        //  定义创建用户表的SQL语句
+        //  两个字段，用户名和密码，都是TEXT类型
+        const char* sql = "CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT);";
+        char* errmsg =nullptr;
+
+        //  执行sql语句创建表
+        //  sqlite3_exec用于执行SQL语句
+        //  db是数据库连接对象
+        //  后面的参数是回调函数和它的参数，这里不需要回调所以传0
+        //  errmsg用于传递错误信息
+        if (sqlite3_exec(db,sql,0,0,&errmsg) != SQLITE_OK) {
+            //  如果创建表失败，抛出运行错误并附带错误信息
+            string error_msg = errmsg;	//	获取错误信息
+            sqlite3_free(errmsg);	//	释放错误信息内存
+            throw runtime_error("Failed to create table: " + error_msg);
+        }
+    }
+
+    //  析构函数，用于关闭数据库连接
+    ~Database() {
+        //  关闭数据库连接
+        //  sqlite3_close用于关闭和释放数据库连接资源
+        //  db是数据库连接对象
+        sqlite3_close(db);
+    }
+
+    //  用户注册函数    -- 需要接收前端传入的username 和 password
+    bool registerUser(const string& username, const string& password) {
+        //  构建sql语句用于插入新用户
+        string sql = "INSERT INTO users (username, password) VALUES(?, ?);";
+        sqlite3_stmt* stmt;
+
+        //  准备sql语句，预编译以防止sql注入攻击
+        if (sqlite3_prepare_v2(db,sql.c_str(),-1,&stmt,nullptr) != SQLITE_OK) {
+            //  如果准备语句失败，记录日志并返回false
+            LOG_INFO("Failed to prepare registration SQL for users: %s", username.c_str());
+            return false;
+        }
+
+        //  绑定SQL语句中的参数，防止SQL注入
+        sqlite3_bind_text(stmt,1,username.c_str(),-1,SQLITE_STATIC);
+        sqlite3_bind_text(stmt,2,password.c_str(),-1,SQLITE_STATIC);
+
+        //  执行SQL语句，进行用户注册
+        if (sqlite3_step(stmt) != SQLITE_DONE) {
+            //  如果执行失败，记录日志，清理资源并返回false
+            LOG_INFO("Register failed for user: %s",username.c_str());
+            return false;
+        }
+
+        //  清理资源，关闭SQL语句
+        sqlite3_finalize(stmt);
+        //  记录用户注册成功的日志，实际上不建议这么写日志(将私密信息全暴露了)，但这里是为了看效果
+        LOG_INFO("User registered : %s with password : %s",username.c_str(),password.c_str());
+        return true;
+    }
+
+    //  用户登录函数
+    bool loginUser(const string username,const string password) {
+        //  构建查询用户密码的sql语句
+        string sql = "SELECT password FROM users WHERE username = ?;";
+        sqlite3_stmt* stmt;
+
+        //  准备sql语句
+        if (sqlite3_prepare_v2(db,sql.c_str(),-1,&stmt,nullptr) != SQLITE_OK) {
+            //  如果准备SQL失败，打印日志并返回false
+            LOG_INFO("Failed to prepare login SQL for user: %s",username.c_str());
+            return false;
+        }
+
+        //  绑定用户名参数
+        sqlite3_bind_text(stmt,1,username.c_str(),-1,SQLITE_STATIC);
+        
+        //  执行SQL语句
+        if(sqlite3_step(stmt) != SQLITE_ROW) {
+            //  如果用户名不存在，记录日志并返回false
+            LOG_INFO("User not found: %s",username.c_str());
+            sqlite3_finalize(stmt);
+            return false;
+        }
+
+        //  获取查询后得到的密码
+        const char* stored_password = reinterpret_cast<const char*>(sqlite3_column_text(stmt,0));
+        
+        //  检查密码是否匹配
+        //	细节 先进行判空再进行比较判断，防止后面通过该指针生成password_str出错
+        if(stored_password == nullptr) {
+            LOG_INFO("Stored password is null for user %s",username.c_str());
+            return false;
+        }
+
+
+        string password_str(stored_password,sqlite3_column_bytes(stmt,0));
+	    sqlite3_finalize(stmt);
+        if(password_str.compare(password) != 0) {
+            //  如果密码不匹配，记录日志并返回false
+            LOG_INFO("Login failed for user: %s",username.c_str());
+            return false;
+        }
+        //  登录成功，记录日志并返回true
+        LOG_INFO("User logged in: %s",username.c_str());
+        return true;
+    }
+
+};
+```
+
+```cpp
+Database.hpp
+|_Database(const string db_path)
+|_~Database()
+|_bool registerUser(const string& username, const string& password)
+|_bool loginUser(const string& username,const string& password)
+```
+
+> Router.hpp
+
+```cpp
+void setupDatabaseRoutes(Database& db) {
+        //  POST登录和注册 -- 获取表单数据
+        addRoute("POST","/register" ,[&db,this](HttpRequest request) {
+			...
+            //  调用db的方法进行注册
+            if(db.registerUser(username,password)) {
+                response.setStatusCode(302);    //  302 -- 重定向
+                response.setHeader("Location","/login");    //  重定向到登录界面
+                return response;
+            } else {
+                return HttpResponse::makeErrorResponse(400,"Register Failed");
+            }
+        });
+        addRoute("POST","/login" ,[&db](HttpRequest request) {
+			...
+            //  调用db的方法进行登录
+            if(db.loginUser(username,password)) {
+                response.setStatusCode(302);
+                response.setHeader("Location","/index.html"); 
+                return response;
+            } else {
+                response.setStatusCode(401);    //  401--未授权 Unauthorized
+                response.setBody("<html><body><h2>Login Failed</h2></body></html>");
+                return response;
+            }
+        });
+    }
+```
+
+但这里只是单纯的调用了Database中的接口
+
+[MySQL to C++ API](C:\Users\Luk1\Desktop\md\MySQL\MySQL_API.md)
+
+#### 原来sqlite和db架构的缺点
+
+1. 原来是数据库一上来就和服务器建立连接,在服务器关闭时,连接才关闭
+   1. **资源消耗**：长时间保持数据库连接开放会占用服务器资源，包括但不限于内存和网络资源。对于高并发或长周期运行的应用，这可能成为一个问题。
+   2. **连接泄漏**：如果应用运行时间很长，可能会出现连接泄漏的问题，即连接数逐渐累积，最终耗尽数据库服务器的连接资源。
+2. sqlite这种轻量级数据库在高并发场景下性能很差(B Tree)
+
+#### 更合理的策略
+
+在实际应用中，更常见的做法是采用“按需连接”或“连接池”的策略：
+
+##### 按需连接
+
+- **定义**：在需要数据库操作时才建立连接，操作完成后立即关闭连接。
+- **适用场景**：适用于低频或短时操作的场景，可以减少资源占用。
+
+##### 连接池
+
+- **定义**：预先创建一定数量的数据库连接，并将它们存储在一个池中。当应用需要数据库操作时，从池中获取一个可用的连接；操作完成后，连接被放回池中供后续使用。
+- **优点**：减少了连接建立和断开的开销，提高了应用的响应速度和数据库的并发处理能力。
+- **适用场景**：适用于高频或长时操作的场景，特别是高并发的应用。
+
+因此,在本项目中先将sqlite改造成MySQL,之后再改为连接池的模式.
+
+### 改造
+
+
 
 ## 项目总结
 
