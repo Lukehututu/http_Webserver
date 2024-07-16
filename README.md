@@ -2665,7 +2665,7 @@ upstream myapp {
 
 ```nginx
 upstream myapp {
-    least_conn;	?????????????????????????
+    least_conn;
     server server1.example.com;
     server server2.example.com;
     server server3.example.com;
@@ -3058,6 +3058,343 @@ void setupDatabaseRoutes(Database& db) {
 因此,在本项目中先将sqlite改造成MySQL,之后再改为连接池的模式.
 
 ### 改造
+
+```cpp
+#pragma once
+#include <mysql/mysql.h>        //  数据库的头文件
+#include <string>
+#include <stdexcept>        //  错误管理的头文件
+#include <cstring>        
+
+#include "Logger.hpp"
+using namespace std;
+
+
+class Database {
+private:
+    MYSQL mysql;
+    MYSQL *conn;
+
+public:
+    //  构造函数，用于打开数据库并创建用户表
+    Database() {
+       conn = mysql_init(&mysql);
+       if(conn == nullptr) {
+            LOG_ERROR("Failed to initialize MySQL connection");
+       } 
+       conn = mysql_real_connect(conn,"localhost","root","1234","webserver",0,NULL,0);
+       if(conn == nullptr) {
+            LOG_ERROR("Failed to connect to MySQL server");
+            mysql_close(conn);
+            throw std::runtime_error("Failed to connect to MySQL server");
+       }
+       LOG_INFO("Connected to MySQL server");
+       //  创建用户表
+       string create_table_sql = 
+                                    "CREATE TABLE IF NOT EXISTS users("                               
+                                    "username VARCHAR(15) PRIMARY KEY, "
+                                    "password VARCHAR(10)"
+                                    ")";
+        if(mysql_query(conn,create_table_sql.c_str())){
+            fprintf(stderr, "%s\n", mysql_error(conn));
+        } else {
+            LOG_INFO("Created users table");
+        }
+        
+    }
+
+    //  析构函数，用于关闭数据库连接
+    ~Database() {
+        conn = nullptr;
+        mysql_close(&mysql);
+    }
+
+    //  用户注册函数    -- 需要接收前端传入的username 和 password
+    bool registerUser(const string& username, const string& password) {
+        //  预先构建sql语句，用于插入新用户
+        string  insert_sql = "INSERT INTO users (username,password) values(?,?)";
+        //  准备预处理对象  --  直接将创建和初始化预处理对象结合
+        MYSQL_STMT *stmt = mysql_stmt_init(conn);
+        if(stmt == nullptr) {
+            LOG_ERROR("Failed to initialize MySQL statement");
+            return false;
+        }
+        //  绑定字符串操作指定的sql语句
+        if(mysql_stmt_prepare(stmt,insert_sql.c_str(),insert_sql.length()) != 0) {
+            LOG_ERROR("Failed to prepare MySQL statement");
+            mysql_stmt_close(stmt);
+            return false;
+        }
+        //  绑定参数，即替换 ？ 
+        MYSQL_BIND params[2];
+        //  就是因为没有初始化
+        memset(params,0,sizeof(params));
+        params[0].buffer_type = MYSQL_TYPE_STRING;
+        params[0].buffer_length = username.length();
+        params[0].buffer = (char*)username.c_str();
+
+        params[1].buffer_type = MYSQL_TYPE_STRING;
+        params[1].buffer = (char*)password.c_str();
+        params[1].buffer_length = password.length();
+
+
+        //  此时已经填充了params
+        //  开始绑定参数到？
+        if(mysql_stmt_bind_param(stmt,params) != 0) {
+            LOG_ERROR("Failed to bind parameters");
+            mysql_stmt_close(stmt);
+            return false;
+        }
+
+        //  开始执行    该函数成功返回0，失败返回非0
+        if(mysql_stmt_execute(stmt) != 0) {
+            int errorNumber = mysql_stmt_errno(stmt);
+            const char* errorMessage = mysql_stmt_error(stmt);
+            LOG_ERROR("Failed to execute statement: %s (Error %d)", errorMessage, errorNumber);
+            mysql_stmt_close(stmt);
+            return false;
+        }
+
+        //  关闭预处理句柄
+        mysql_stmt_close(stmt);
+        //  一般不记录敏感信息，但此时是为了调试
+        LOG_INFO("Registered user %s password %s",username.c_str(),password.c_str());
+        return true;
+    }
+
+    //  用户登录函数
+    bool loginUser(const string& username,const string& password) {
+        //  构建查询用户密码的sql语句
+        string sql = "SELECT password FROM users WHERE username = ?";
+        //  准备stmt
+        MYSQL_STMT * stmt = mysql_stmt_init(conn);
+        if(stmt == nullptr) {
+            LOG_ERROR("Failed to initialized MySQL statement");
+            return false;
+        }
+
+        if(mysql_stmt_prepare(stmt,sql.c_str(),sql.length()) != 0 ) {
+            LOG_ERROR("Failed to prepare MySQL statement");
+            mysql_stmt_close(stmt);
+            return false;
+        }
+
+        MYSQL_BIND param;
+        memset(&param,0,sizeof(param));
+        param.buffer_type = MYSQL_TYPE_STRING;
+        param.buffer_length = username.length();
+        param.buffer = (char*)username.c_str();
+
+        //  如果执行的是查询语句，那就是用bind_param
+        if(mysql_stmt_bind_param(stmt,&param) != 0) {
+            LOG_ERROR("Failed to bind MySQL statement");
+            mysql_stmt_close(stmt);
+            return false;
+        }
+
+        //  执行
+        if(mysql_stmt_execute(stmt) != 0) {
+            LOG_ERROR("Failed to exec MySQL statement");
+            mysql_stmt_close(stmt);
+            return false;
+        }
+
+
+        //  准备结果集
+        MYSQL_BIND result;
+        memset(&result,0,sizeof(result));
+        result.buffer_type = MYSQL_TYPE_STRING;
+        result.buffer_length = 256;
+        result.buffer = new char[256];
+        result.length = &result.buffer_length;
+        //  绑定结果集
+        if(mysql_stmt_bind_result(stmt,&result) != 0) {
+            LOG_ERROR("Failed to bind result");
+            delete[] result.buffer;
+            mysql_stmt_close(stmt);
+            return false;
+        }
+
+        //  获取结果
+        if(mysql_stmt_fetch(stmt) == 0) {
+            //  现在ret_ps包含了查询到的密码
+            string ret_ps = string((char*)result.buffer,result.buffer_length);
+            if(password.compare(ret_ps) != 0) {
+                LOG_ERROR("Login failed for user %s",username.c_str());
+                delete[] result.buffer;
+                mysql_stmt_close(stmt);
+                return false;
+            }
+        } else {
+            int errnum = mysql_stmt_errno(stmt);
+            const char* errmsg = mysql_stmt_error(stmt);
+            LOG_ERROR("Failed to fetch data: Error %d: %s", errnum, errmsg);
+            mysql_stmt_close(stmt);
+            delete[] result.buffer;
+            return false;
+        }
+
+        delete[] result.buffer;
+        mysql_stmt_free_result(stmt);
+        mysql_stmt_close(stmt);
+        LOG_INFO("User %s login ",username.c_str());
+        return true;
+    }
+
+};
+```
+
+### 出现的问题
+
+1. `MYSQL_BIND`两个对象没有`memset`进行初始化,==一定要注意这些相关变量的初始化!!!!==
+2. 执行的sql语句可以在这个文件中看到,但是我没查到?
+
+```cpp
+mysql> SHOW VARIABLES LIKE 'general_log_file';
++------------------+------------------------------+
+| Variable_name    | Value                        |
++------------------+------------------------------+
+| general_log_file | /var/lib/mysql/localhost.log |
++------------------+------------------------------+
+```
+
+3. 对于`loginUser()`这个函数而言,其`select`语句要用预处理绑定,其结果也要用`MYSQL_BIND`去绑定结果集,然后再去取结果
+4. 使用完对象后,一定要记得==释放相关的资源==
+
+### 修改nginx文件
+
+```nginx
+user root;
+events {
+    worker_connections 1024; #   指定每个worker进程可以建立的最大连接数为1024
+}
+
+http {
+    #   配置代理缓存路径和规则
+    proxy_cache_path /var/cache/nginx levels=1:2 keys_zone=my_cache:10m max_size=10g inactive=60m use_temp_path=off;
+    #   /var/cache/nginx    缓存存储的路径
+    #   levels=1:2  缓存文件的目录层级
+    #   keys_zone=my+cache:10m  缓存键区域名为 my_cache 大小为10MB
+    #   max_size=10g    最大缓存大小为10GB
+    #   inactive=60m    在60分钟内未被访问的缓存会被清除
+    #   use_temp_path=off   不使用临时路径存储缓存数据
+
+    #   定义一个名为myapp的upstream，用于负载均衡
+    upstream myapp {
+        #   分别是  地址    和    权重
+        server localhost:8080 weight=3;     
+        server localhost:8081 weight=2;
+        server localhost:8082 weight=1;
+    }
+    
+ 	# 自定义日志格式，全局应用
+    log_format custom_format '$remote_addr - $remote_user [$time_local] "$request" '
+                '$status $body_bytes_sent "$http_referer" '
+                '"$http_user_agent" "$upstream_addr"';            
+
+    #   server块定义了一个服务
+    server {
+        #   监听80窗口
+        listen 80;  
+
+        #   相对路径的配置
+        location / {
+            #   将请求转发到名为myapp的upstream
+            proxy_pass http://myapp;    
+            #   设置http头部，用于将客户端的相关信息转发给服务器
+            proxy_set_header Host $host;    #   传递原始请求的HOST头部
+            proxy_set_header X-Real-IP $remote_addr;    #   传递客户端的真实IP
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;    #   传递X-Forwarded-For头部
+            proxy_set_header X-Forwarded-Proto $scheme;    #   传递原始请求使用的协议
+            access_log /var/log/nginx/access.log custom_format;
+
+        }
+        -------------------------------------------------------------------------------------
+		# 对于所有其他路径，也使用相同的日志格式
+        location ~* .+ {
+            proxy_pass http://myapp;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+
+            # 使用自定义日志格式
+            access_log /var/log/nginx/access.log custom_format;
+        }
+        -------------------------------------------------------------------------------------
+
+        #   /login 和 /register的   GET    请求配置
+        location ~ ^/(login|register)$ {
+            proxy_cache my_cache;   #   使用名为 my_cache 的缓存区
+            proxy_cache_valid 200 302 10m;  #   对于状态为 200 和 302 的响应,缓存有效期为 10m
+            #   设置通用的HTTP头部信息
+            proxy_set_header Host $host; 
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            #   所有除了POST之外的所有请求
+            limit_except POST {
+                proxy_pass http://myapp;    #   对于    GET 请求,转发到myapp
+            }
+        }
+
+        #   /login 和 /register的   POST    请求配置
+        location ~ ^/(login|register)$ {
+            proxy_pass http://myapp;
+            #   设置通用的HTTP头部信息
+            proxy_set_header Host $host; 
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+}
+```
+
+这样在`/var/log/nginx/access.log`也就是nginx执行日志中,就可以看到到底转发给了哪个端口
+
+### CMake的修改
+
+```cmake
+cmake_minimum_required(VERSION 3.10)
+project(MyServerProject)
+
+# 设置 C++ 标准
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+# 设置app输出路径
+set(HOME /home/luk1/code/http_WebServer/v8_MySql)   # 定义home路径
+set(EXECUTABLE_OUTPUT_PATH ${HOME}/app) # 指定输出路径
+
+#   指定配置文件
+set(NGINX_CONF "nginx.conf")
+#   安装配置文件到目标位置
+install(FILES ${NGINX_CONF}
+        DESTINATION /etc/nginx
+        COMPONENT config_files)
+
+# 添加可执行文件
+add_executable(server main.cpp Database.hpp Logger.hpp ThreadPool.hpp HttpRequest.hpp HttpResponse.hpp HttpServer.hpp Router.hpp FileUtils.hpp)
+
+
+# 手动添加目录和库的位置
+include_directories(/usr/include/mysql)		#	增加了mysql头文件的路径
+target_link_libraries(server PRIVATE -L/usr/lib64/mysql -lmysqlclient pthread)
+									#	此处手动指定了mysql库的路径
+
+# 外部库链接（如果有其他库需求，可以在此处添加）
+#target_link_libraries(server PRIVATE mysql pthread)
+
+
+# 编译选项
+# 如果需要，可以添加其他编译选项
+# target_compile_options(server PRIVATE ...)
+
+# 如果需要链接其他库，可以使用 find_package 或 find_library 查找并链接它们
+
+
+```
 
 
 

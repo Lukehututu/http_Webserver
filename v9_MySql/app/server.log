@@ -1,0 +1,308 @@
+Tue Jul 16 21:48:46 2024
+ [INFO] Connected to MySQL server
+Tue Jul 16 21:48:46 2024
+ [INFO] Created users table
+Tue Jul 16 21:48:46 2024
+ [INFO] socket created
+Tue Jul 16 21:48:46 2024
+ [INFO] Server listening on port 8081
+Tue Jul 16 21:48:46 2024
+ [INFO] start loop
+Tue Jul 16 21:48:46 2024
+ [INFO] 1
+Tue Jul 16 21:48:46 2024
+ [INFO] Thread1111779072 waiting...
+Tue Jul 16 21:48:46 2024
+ [INFO] Thread1111779072 acquired lock
+Tue Jul 16 21:48:46 2024
+ [INFO] Thread1136957184 waiting...
+Tue Jul 16 21:48:46 2024
+ [INFO] Thread1136957184 acquired lock
+Tue Jul 16 21:48:46 2024
+ [INFO] Thread1128564480 waiting...
+Tue Jul 16 21:48:46 2024
+ [INFO] Thread1128564480 acquired lock
+Tue Jul 16 21:48:46 2024
+ [INFO] Thread1120171776 waiting...
+Tue Jul 16 21:48:46 2024
+ [INFO] Thread1120171776 acquired lock
+Tue Jul 16 21:48:47 2024
+ [INFO] Connected to MySQL server
+Tue Jul 16 21:48:47 2024
+ [INFO] Created users table
+Tue Jul 16 21:48:47 2024
+ [INFO] socket created
+Tue Jul 16 21:48:47 2024
+ [INFO] Server listening on port 8082
+Tue Jul 16 21:48:47 2024
+ [INFO] start loop
+Tue Jul 16 21:48:47 2024
+ [INFO] 1
+Tue Jul 16 21:48:47 2024
+ [INFO] Thread913118976 waiting...
+Tue Jul 16 21:48:47 2024
+ [INFO] Thread913118976 acquired lock
+Tue Jul 16 21:48:47 2024
+ [INFO] Thread904726272 waiting...
+Tue Jul 16 21:48:47 2024
+ [INFO] Thread904726272 acquired lock
+Tue Jul 16 21:48:47 2024
+ [INFO] Thread921511680 waiting...
+Tue Jul 16 21:48:47 2024
+ [INFO] Thread921511680 acquired lock
+Tue Jul 16 21:48:47 2024
+ [INFO] Thread896333568 waiting...
+Tue Jul 16 21:48:47 2024
+ [INFO] Thread896333568 acquired lock
+Tue Jul 16 21:48:53 2024
+ [INFO] 2
+Tue Jul 16 21:48:53 2024
+ [INFO] new connection
+Tue Jul 16 21:48:53 2024
+ [INFO] New connection accepted
+Tue Jul 16 21:48:53 2024
+ [INFO] 1
+Tue Jul 16 21:48:53 2024
+ [INFO] 2
+Tue Jul 16 21:48:53 2024
+ [INFO] notify_one
+Tue Jul 16 21:48:53 2024
+ [INFO] 1
+Tue Jul 16 21:48:53 2024
+ [INFO] thread wake up...
+Tue Jul 16 21:48:53 2024
+ [INFO] Thread913118976 release exit...
+Tue Jul 16 21:48:53 2024
+ [INFO] handle
+Tue Jul 16 21:48:53 2024
+ [INFO] Thread913118976 waiting...
+Tue Jul 16 21:48:53 2024
+ [INFO] Thread913118976 acquired lock
+Tue Jul 16 21:51:12 2024
+ [INFO] 2
+Tue Jul 16 21:51:12 2024
+ [INFO] new connection
+Tue Jul 16 21:51:12 2024
+ [INFO] New connection accepted
+Tue Jul 16 21:51:12 2024
+ [INFO] 1
+Tue Jul 16 21:51:12 2024
+ [INFO] 2
+Tue Jul 16 21:51:12 2024
+ [INFO] notify_one
+Tue Jul 16 21:51:12 2024
+ [INFO] 1
+Tue Jul 16 21:51:12 2024
+ [INFO] thread wake up...
+Tue Jul 16 21:51:12 2024
+ [INFO] Thread1111779072 release exit...
+Tue Jul 16 21:51:12 2024
+ [INFO] handle
+Tue Jul 16 21:51:12 2024
+ [INFO] Thread1111779072 waiting...
+Tue Jul 16 21:51:12 2024
+ [INFO] Thread1111779072 acquired lock
+Tue Jul 16 22:01:23 2024
+ [INFO] 2
+Tue Jul 16 22:01:23 2024
+ [INFO] new connection
+Tue Jul 16 22:01:23 2024
+ [INFO] New connection accepted
+Tue Jul 16 22:01:23 2024
+ [INFO] 1
+Tue Jul 16 22:01:23 2024
+ [INFO] 2
+Tue Jul 16 22:01:23 2024
+ [INFO] notify_one
+Tue Jul 16 22:01:23 2024
+ [INFO] 1
+Tue Jul 16 22:01:23 2024
+ [INFO] thread wake up...
+Tue Jul 16 22:01:23 2024
+ [INFO] Thread1136957184 release exit...
+Tue Jul 16 22:01:23 2024
+ [INFO] handle
+Tue Jul 16 22:01:23 2024
+ [INFO] Thread1136957184 waiting...
+Tue Jul 16 22:01:23 2024
+ [INFO] Thread1136957184 acquired lock
+Tue Jul 16 22:07:50 2024
+ [INFO] 2
+Tue Jul 16 22:07:50 2024
+ [INFO] new connection
+Tue Jul 16 22:07:50 2024
+ [INFO] New connection accepted
+Tue Jul 16 22:07:50 2024
+ [INFO] 1
+Tue Jul 16 22:07:50 2024
+ [INFO] 2
+Tue Jul 16 22:07:50 2024
+ [INFO] notify_one
+Tue Jul 16 22:07:50 2024
+ [INFO] 1
+Tue Jul 16 22:07:50 2024
+ [INFO] thread wake up...
+Tue Jul 16 22:07:50 2024
+ [INFO] Thread1128564480 release exit...
+Tue Jul 16 22:07:50 2024
+ [INFO] handle
+Tue Jul 16 22:07:50 2024
+ [INFO] Thread1128564480 waiting...
+Tue Jul 16 22:07:50 2024
+ [INFO] Thread1128564480 acquired lock
+Tue Jul 16 22:08:08 2024
+ [INFO] 2
+Tue Jul 16 22:08:08 2024
+ [INFO] new connection
+Tue Jul 16 22:08:08 2024
+ [INFO] New connection accepted
+Tue Jul 16 22:08:08 2024
+ [INFO] 1
+Tue Jul 16 22:08:08 2024
+ [INFO] 2
+Tue Jul 16 22:08:08 2024
+ [INFO] notify_one
+Tue Jul 16 22:08:08 2024
+ [INFO] 1
+Tue Jul 16 22:08:08 2024
+ [INFO] thread wake up...
+Tue Jul 16 22:08:08 2024
+ [INFO] Thread904726272 release exit...
+Tue Jul 16 22:08:08 2024
+ [INFO] handle
+Tue Jul 16 22:08:08 2024
+ [INFO] Thread904726272 waiting...
+Tue Jul 16 22:08:08 2024
+ [INFO] Thread904726272 acquired lock
+Tue Jul 16 22:08:24 2024
+ [INFO] 2
+Tue Jul 16 22:08:24 2024
+ [INFO] new connection
+Tue Jul 16 22:08:24 2024
+ [INFO] New connection accepted
+Tue Jul 16 22:08:24 2024
+ [INFO] 1
+Tue Jul 16 22:08:24 2024
+ [INFO] 2
+Tue Jul 16 22:08:24 2024
+ [INFO] notify_one
+Tue Jul 16 22:08:24 2024
+ [INFO] 1
+Tue Jul 16 22:08:24 2024
+ [INFO] thread wake up...
+Tue Jul 16 22:08:24 2024
+ [INFO] Thread1120171776 release exit...
+Tue Jul 16 22:08:24 2024
+ [INFO] handle
+Tue Jul 16 22:08:24 2024
+ [INFO] Thread1120171776 waiting...
+Tue Jul 16 22:08:24 2024
+ [INFO] Thread1120171776 acquired lock
+Tue Jul 16 22:12:05 2024
+ [INFO] 2
+Tue Jul 16 22:12:05 2024
+ [INFO] new connection
+Tue Jul 16 22:12:05 2024
+ [INFO] New connection accepted
+Tue Jul 16 22:12:05 2024
+ [INFO] 1
+Tue Jul 16 22:12:05 2024
+ [INFO] 2
+Tue Jul 16 22:12:05 2024
+ [INFO] notify_one
+Tue Jul 16 22:12:05 2024
+ [INFO] 1
+Tue Jul 16 22:12:05 2024
+ [INFO] thread wake up...
+Tue Jul 16 22:12:05 2024
+ [INFO] Thread1111779072 release exit...
+Tue Jul 16 22:12:05 2024
+ [INFO] handle
+Tue Jul 16 22:12:05 2024
+ [INFO] Parsed key-value pair: username = aaa
+Tue Jul 16 22:12:05 2024
+ [INFO] Parsed key-value pair: password = 123
+Tue Jul 16 22:12:05 2024
+ [INFO] User aaa login 
+Tue Jul 16 22:12:05 2024
+ [INFO] Thread1111779072 waiting...
+Tue Jul 16 22:12:05 2024
+ [INFO] Thread1111779072 acquired lock
+Tue Jul 16 22:12:05 2024
+ [INFO] 2
+Tue Jul 16 22:12:05 2024
+ [INFO] new connection
+Tue Jul 16 22:12:05 2024
+ [INFO] New connection accepted
+Tue Jul 16 22:12:05 2024
+ [INFO] 1
+Tue Jul 16 22:12:05 2024
+ [INFO] 2
+Tue Jul 16 22:12:05 2024
+ [INFO] notify_one
+Tue Jul 16 22:12:05 2024
+ [INFO] 1
+Tue Jul 16 22:12:05 2024
+ [INFO] thread wake up...
+Tue Jul 16 22:12:05 2024
+ [INFO] Thread921511680 release exit...
+Tue Jul 16 22:12:05 2024
+ [INFO] handle
+Tue Jul 16 22:12:05 2024
+ [INFO] Thread921511680 waiting...
+Tue Jul 16 22:12:05 2024
+ [INFO] Thread921511680 acquired lock
+Tue Jul 16 22:12:21 2024
+ [INFO] 2
+Tue Jul 16 22:12:21 2024
+ [INFO] new connection
+Tue Jul 16 22:12:21 2024
+ [INFO] New connection accepted
+Tue Jul 16 22:12:21 2024
+ [INFO] 1
+Tue Jul 16 22:12:21 2024
+ [INFO] 2
+Tue Jul 16 22:12:21 2024
+ [INFO] notify_one
+Tue Jul 16 22:12:21 2024
+ [INFO] 1
+Tue Jul 16 22:12:21 2024
+ [INFO] thread wake up...
+Tue Jul 16 22:12:21 2024
+ [INFO] Thread1136957184 release exit...
+Tue Jul 16 22:12:21 2024
+ [INFO] handle
+Tue Jul 16 22:12:21 2024
+ [INFO] Parsed key-value pair: username = acc
+Tue Jul 16 22:12:21 2024
+ [INFO] Parsed key-value pair: password = 123
+Tue Jul 16 22:12:21 2024
+ [INFO] Registered user acc password 123
+Tue Jul 16 22:12:21 2024
+ [INFO] Thread1136957184 waiting...
+Tue Jul 16 22:12:21 2024
+ [INFO] Thread1136957184 acquired lock
+Tue Jul 16 22:12:31 2024
+ [INFO] 2
+Tue Jul 16 22:12:31 2024
+ [INFO] new connection
+Tue Jul 16 22:12:31 2024
+ [INFO] New connection accepted
+Tue Jul 16 22:12:31 2024
+ [INFO] 1
+Tue Jul 16 22:12:31 2024
+ [INFO] 2
+Tue Jul 16 22:12:31 2024
+ [INFO] notify_one
+Tue Jul 16 22:12:31 2024
+ [INFO] 1
+Tue Jul 16 22:12:31 2024
+ [INFO] thread wake up...
+Tue Jul 16 22:12:31 2024
+ [INFO] Thread1128564480 release exit...
+Tue Jul 16 22:12:31 2024
+ [INFO] handle
+Tue Jul 16 22:12:31 2024
+ [INFO] Thread1128564480 waiting...
+Tue Jul 16 22:12:31 2024
+ [INFO] Thread1128564480 acquired lock

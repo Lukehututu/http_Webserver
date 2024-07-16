@@ -1,0 +1,7 @@
+/home/luk1/code/http_WebServer/v8_MySql/build/CMakeFiles/install/strip.dir
+/home/luk1/code/http_WebServer/v8_MySql/build/CMakeFiles/edit_cache.dir
+/home/luk1/code/http_WebServer/v8_MySql/build/CMakeFiles/server.dir
+/home/luk1/code/http_WebServer/v8_MySql/build/CMakeFiles/rebuild_cache.dir
+/home/luk1/code/http_WebServer/v8_MySql/build/CMakeFiles/list_install_components.dir
+/home/luk1/code/http_WebServer/v8_MySql/build/CMakeFiles/install/local.dir
+/home/luk1/code/http_WebServer/v8_MySql/build/CMakeFiles/install.dir
