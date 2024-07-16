@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/server.dir/main.cpp.o -o ../app/server  -L/usr/lib64/mysql -lmysqlclient -lpthread 
